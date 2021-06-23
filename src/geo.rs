@@ -10,12 +10,6 @@ impl<const D: usize> Point<D> {
         D
     }
 
-    pub fn empty() -> Point<D> {
-        Point {
-            coords: [0.0; D]
-        }
-    }
-
     pub fn new(coords: [f32; D]) -> Point<D> {
         Point {
             coords
@@ -49,7 +43,9 @@ impl<const D: usize> Point<D> {
 
 impl<const D: usize> default::Default for Point<D> {
     fn default() -> Self {
-        Point::<D>::empty()
+        Point {
+            coords: [0.0; D]
+        }
     }
 }
 
