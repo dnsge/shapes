@@ -63,12 +63,12 @@ impl<const D: usize> ops::IndexMut<usize> for Point<D> {
     }
 }
 
-impl<const N: usize> fmt::Display for Point<N> {
+impl<const D: usize> fmt::Display for Point<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let _ = write!(f, "("); // silence, compiler
-        for i in 0..N {
+        for i in 0..D {
             let _ = write!(f, "{}", self.coords[i]);
-            if i != N - 1 {
+            if i != D - 1 {
                 let _ = write!(f, ", ");
             }
         }
