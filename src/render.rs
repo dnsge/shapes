@@ -65,16 +65,16 @@ pub fn make_scaling_matrix(pixel_size: f32, viewport_width: usize, viewport_heig
 }
 
 fn projection_to_ndc(p: geo::Point2, width: usize, height: usize) -> geo::Point2 {
-    geo::Point2(
-        (p.0 + (width as f32 / 2.0)) / (width as f32),
-        (p.1 + (height as f32 / 2.0)) / (height as f32),
-    )
+    geo::Point2::new([
+        (p[0] + (width as f32 / 2.0)) / (width as f32),
+        (p[1] + (height as f32 / 2.0)) / (height as f32),
+    ])
 }
 
 fn ndc_to_raster(ndc: geo::Point2, screen_size: (usize, usize)) -> (usize, usize) {
     (
-        (ndc.0 * screen_size.0 as f32).floor() as usize,
-        ((1.0 - ndc.1) * screen_size.1 as f32).floor() as usize,
+        (ndc[0] * screen_size.0 as f32).floor() as usize,
+        ((1.0 - ndc[1]) * screen_size.1 as f32).floor() as usize,
     )
 }
 

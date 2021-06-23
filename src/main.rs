@@ -3,6 +3,7 @@ mod geo;
 mod render;
 
 use minifb::{Key, Window, WindowOptions};
+use geo::{Point2, Point3};
 
 // in units
 const PIXEL_SIZE: f32 = 1.0;
@@ -15,27 +16,27 @@ const HEIGHT: usize = 512;
 const FPS: u64 = 60;
 
 struct Cube {
-    pub origin: geo::Point3,
+    pub origin: Point3,
     pub size: f32,
 }
 
 impl Cube {
-    fn vertices(&self) -> [geo::Point3; 8] {
+    fn vertices(&self) -> [Point3; 8] {
         let half = self.size / 2.0;
         [
-            self.origin.add(half, half, half),
-            self.origin.add(half, half, -half),
-            self.origin.add(half, -half, half),
-            self.origin.add(half, -half, -half),
-            self.origin.add(-half, half, half),
-            self.origin.add(-half, half, -half),
-            self.origin.add(-half, -half, half),
-            self.origin.add(-half, -half, -half),
+            self.origin.add([half, half, half]),
+            self.origin.add([half, half, -half]),
+            self.origin.add([half, -half, half]),
+            self.origin.add([half, -half, -half]),
+            self.origin.add([-half, half, half]),
+            self.origin.add([-half, half, -half]),
+            self.origin.add([-half, -half, half]),
+            self.origin.add([-half, -half, -half]),
         ]
     }
 
-    fn map_to_screen(&self, fm: matrix::Matrix34, cm: matrix::Matrix33) -> [geo::Point2; 8] {
-        let mut res: [geo::Point2; 8] = [geo::Point2(0.0, 0.0); 8];
+    fn map_to_screen(&self, fm: matrix::Matrix34, cm: matrix::Matrix33) -> [Point2; 8] {
+        let mut res: [Point2; 8] = [Point2::default(); 8];
         let vertices = self.vertices();
 
         for i in 0..7 {
@@ -51,7 +52,7 @@ fn main() {
     let coordinate_mapping_matrix = render::make_scaling_matrix(PIXEL_SIZE, WIDTH * 2, HEIGHT);
 
     let mut my_cube = Cube {
-        origin: geo::Point3(-10.0, 0.0, 10.0),
+        origin: Point3::new([-10.0, 0.0, 10.0]),
         size: 4.0,
     };
 
@@ -70,11 +71,11 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let elapsed = now.elapsed().unwrap().as_secs_f32();
 
-        my_cube.origin = geo::Point3(
+        my_cube.origin = Point3::new([
             f32::cos(elapsed) * 10.0,
             f32::sin(elapsed) * 5.0,
             10.0,
-        );
+        ]);
         my_cube.size = f32::abs(f32::cos(elapsed) * 4.0);
 
         screen.clear(0x000000);

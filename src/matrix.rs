@@ -10,21 +10,21 @@ pub struct Matrix33(pub [[f32; 3]; 3]);
 
 impl Matrix34 {
     pub fn dot_point4(&self, p: Point4) -> Point3 {
-        Point3(
-            self.0[0][0] * p.0 + self.0[0][1] * p.1 + self.0[0][2] * p.2 + self.0[0][3] * p.3,
-            self.0[1][0] * p.0 + self.0[1][1] * p.1 + self.0[1][2] * p.2 + self.0[1][3] * p.3,
-            self.0[2][0] * p.0 + self.0[2][1] * p.1 + self.0[2][2] * p.2 + self.0[2][3] * p.3,
-        )
+        Point3::new([
+            self.0[0][0] * p[0] + self.0[0][1] * p[1] + self.0[0][2] * p[2] + self.0[0][3] * p[3],
+            self.0[1][0] * p[0] + self.0[1][1] * p[1] + self.0[1][2] * p[2] + self.0[1][3] * p[3],
+            self.0[2][0] * p[0] + self.0[2][1] * p[1] + self.0[2][2] * p[2] + self.0[2][3] * p[3],
+        ])
     }
 }
 
 impl Matrix33 {
     pub fn dot_point3(&self, p: Point3) -> Point3 {
-        Point3(
-            self.0[0][0] * p.0 + self.0[0][1] * p.1 + self.0[0][2] * p.2,
-            self.0[1][0] * p.0 + self.0[1][1] * p.1 + self.0[1][2] * p.2,
-            self.0[2][0] * p.0 + self.0[2][1] * p.1 + self.0[2][2] * p.2,
-        )
+        Point3::new([
+            self.0[0][0] * p[0] + self.0[0][1] * p[1] + self.0[0][2] * p[2],
+            self.0[1][0] * p[0] + self.0[1][1] * p[1] + self.0[1][2] * p[2],
+            self.0[2][0] * p[0] + self.0[2][1] * p[1] + self.0[2][2] * p[2],
+        ])
     }
 
     // row of self multiplied by col of m
