@@ -56,7 +56,7 @@ impl Cube {
 }
 
 fn main() {
-    let focal_matrix = render::make_focal_matrix(0.0, 0.0);
+    let focal_matrix = render::make_focal_matrix(10.0, 0.0);
     // let coordinate_mapping_matrix = render::make_scaling_matrix(PIXEL_SIZE, 4, 4);
 
     let mut my_cube = Cube {
@@ -90,9 +90,9 @@ fn main() {
             // project point onto z = 1
             let projected = (focal_matrix * (v.euc_to_hom().to_tall_matrix())).unwrap().tall_to_point().hom_to_euc();
             // convert point at (x, y, 1) to screen space
-            let screen_point = render::projection_to_raster(projected, (4, 4), screen.size());
+            let screen_point = render::projection_to_screen(projected, (4, 4), screen.size());
 
-            if let Some(pixel) = screen.get_pixel(screen_point) {
+            if let Some(pixel) = screen.get_pixel_i(screen_point) {
                 *pixel = 0xffffff;
             }
         }

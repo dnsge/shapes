@@ -28,6 +28,14 @@ impl Screen {
         self.get_coords(pixel.0, pixel.1)
     }
 
+    pub fn get_pixel_i(&mut self, pixel: (isize, isize)) -> Option<&mut u32> {
+        if pixel.0 < 0 || pixel.1 < 0 {
+            None
+        } else {
+            self.get_coords(pixel.0 as usize, pixel.1 as usize)
+        }
+    }
+
     pub fn clear(&mut self, color: u32) {
         self.buffer.fill(color)
     }
@@ -72,14 +80,14 @@ fn projection_to_ndc(p: Point2, width: usize, height: usize) -> Point2 {
     ])
 }
 
-fn ndc_to_raster(ndc: Point2, screen_size: (usize, usize)) -> (usize, usize) {
+fn ndc_to_screen(ndc: Point2, screen_size: (usize, usize)) -> (isize, isize) {
     (
-        (ndc[0] * screen_size.0 as f32).floor() as usize,
-        ((1.0 - ndc[1]) * screen_size.1 as f32).floor() as usize,
+        (ndc[0] * screen_size.0 as f32).floor() as isize,
+        ((1.0 - ndc[1]) * screen_size.1 as f32).floor() as isize,
     )
 }
 
-pub fn projection_to_raster(p: Point2, proj_size: (usize, usize), screen_size: (usize, usize)) -> (usize, usize) {
-    let ndc = projection_to_ndc(p, proj_size.0, proj_size.1);
-    ndc_to_raster(ndc, screen_size)
+pub fn projection_to_screen(p: Point2, proj_size: (usize, usize), screen_size: (usize, usize)) -> (isize, isize) {
+    let ndc = projection_to_ndc(p, proj_size.0, proj_size.1); // move to normalized device coordinates
+    ndc_to_screen(ndc, screen_size) // move to screen coordinates
 }
