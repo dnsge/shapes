@@ -78,26 +78,12 @@ pub fn make_rotation_matrix(rx: f32, ry: f32, rz: f32) -> Matrix<3, 3> {
     let sin = f32::sin;
     let cos = f32::cos;
 
-    let x: Matrix<3, 3> = Matrix::new([
-        [1.0, 0.0, 0.0],
-        [0.0, cos(rx), -sin(rx)],
-        [0.0, sin(rx), cos(rx)]
-    ]);
-
-    let y: Matrix<3, 3> = Matrix::new([
-        [cos(ry), 0.0, sin(ry)],
-        [0.0, 1.0, 0.0],
-        [-sin(ry), 0.0, cos(ry)]
-    ]);
-
-    let z: Matrix<3, 3> = Matrix::new([
-        [cos(rz), -sin(rz), 0.0],
-        [sin(rz), cos(rz), 0.0],
-        [0.0, 0.0, 1.0]
-    ]);
-
-    // combine rotation matrices into one
-    x * y * z
+    // see https://en.wikipedia.org/wiki/Rotation_matrix#General_rotations
+    Matrix::new([
+        [cos(rx) * cos(ry), cos(rx) * sin(ry) * sin(rz) - sin(rx) * cos(rz), cos(rx) * sin(ry) * cos(rz) + sin(rx) * sin(rz)],
+        [sin(rx) * cos(ry), sin(rx) * sin(ry) * sin(rz) + cos(rx) * cos(rz), sin(rx) * sin(ry) * cos(rz) - cos(rx) * sin(rz)],
+        [-sin(ry), cos(ry) * sin(rz), cos(ry) * cos(rz)]
+    ])
 }
 
 fn projection_to_ndc(p: Point2, width: usize, height: usize) -> Point2 {
