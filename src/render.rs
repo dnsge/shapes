@@ -111,6 +111,51 @@ impl Screen {
             *pixel = color;
         }
     }
+
+    pub fn fill_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
+        let mut points = vec![p1, p2, p3];
+        points.sort_by_key(|p| {
+            p.1
+        });
+
+        if points[1].1 == points[2].1 {
+            self.fill_bottom_triangle(points[0], points[1], points[2], color);
+        } else if points[0].1 == points[1].1 {
+            self.fill_top_triangle(points[0], points[1], points[2], color);
+        } else {
+            let p4 = ((points[0].0 as f32 + (((points[1].1 - points[0].1) as f32) / ((points[2].1 - points[0].1) as f32)) * (points[2].0 - points[0].0) as f32) as isize, points[1].1);
+            self.fill_bottom_triangle(points[0], points[1], p4, color);
+            self.fill_top_triangle(points[1], p4, points[2], color);
+        }
+    }
+
+    fn fill_bottom_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
+        let slope1 = (p2.0 - p1.0) as f32 / (p2.1 - p1.1) as f32;
+        let slope2 = (p3.0 - p1.0) as f32 / (p3.1 - p1.1) as f32;
+
+        let mut cur_x_1 = p1.0 as f32;
+        let mut cur_x_2 = p1.0 as f32;
+
+        for y_val in p1.1..=p2.1 {
+            self.draw_line((cur_x_1 as isize, y_val), (cur_x_2 as isize, y_val), color);
+            cur_x_1 += slope1;
+            cur_x_2 += slope2;
+        }
+    }
+
+    fn fill_top_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
+        let slope1 = (p3.0 - p1.0) as f32 / (p3.1 - p1.1) as f32;
+        let slope2 = (p3.0 - p2.0) as f32 / (p3.1 - p2.1) as f32;
+
+        let mut cur_x_1 = p3.0 as f32;
+        let mut cur_x_2 = p3.0 as f32;
+
+        for y_val in (p1.1..=p3.1).rev() {
+            self.draw_line((cur_x_1 as isize, y_val), (cur_x_2 as isize, y_val), color);
+            cur_x_1 -= slope1;
+            cur_x_2 -= slope2;
+        }
+    }
 }
 
 pub fn make_focal_matrix(cam_x: f32, cam_y: f32) -> Matrix<3, 4> {
