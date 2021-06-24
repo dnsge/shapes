@@ -73,6 +73,33 @@ pub fn make_scaling_matrix(pixel_size: f32, viewport_width: usize, viewport_heig
     ])
 }
 
+pub fn make_rotation_matrix(rx: f32, ry: f32, rz: f32) -> Matrix<3, 3> {
+    // aliases
+    let sin = f32::sin;
+    let cos = f32::cos;
+
+    let x: Matrix<3, 3> = Matrix::new([
+        [1.0, 0.0, 0.0],
+        [0.0, cos(rx), -sin(rx)],
+        [0.0, sin(rx), cos(rx)]
+    ]);
+
+    let y: Matrix<3, 3> = Matrix::new([
+        [cos(ry), 0.0, sin(ry)],
+        [0.0, 1.0, 0.0],
+        [-sin(ry), 0.0, cos(ry)]
+    ]);
+
+    let z: Matrix<3, 3> = Matrix::new([
+        [cos(rz), -sin(rz), 0.0],
+        [sin(rz), cos(rz), 0.0],
+        [0.0, 0.0, 1.0]
+    ]);
+
+    // combine rotation matrices into one
+    x * y * z
+}
+
 fn projection_to_ndc(p: Point2, width: usize, height: usize) -> Point2 {
     Point2::new([
         (p[0] + (width as f32 / 2.0)) / (width as f32),

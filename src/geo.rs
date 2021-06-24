@@ -1,5 +1,6 @@
 use std::{default, fmt, ops};
 use crate::matrix::{Matrix};
+use crate::render::make_rotation_matrix;
 
 #[derive(Copy, Clone)]
 pub struct Point<const D: usize> {
@@ -127,4 +128,14 @@ impl Point3 {
     pub fn euc_to_hom(&self) -> Point4 {
         Point4::new([self[0], self[1], self[2], 1.0])
     }
+}
+
+pub fn rotate_point(p: Point3, center: Point3, rot: (f32, f32, f32)) -> Point3 {
+    // 1. Translate p towards origin
+    let mut n = p.add([-center[0], -center[1], -center[2]]);
+    // 2. Rotate n about origin by rot
+    let rot_matrix = make_rotation_matrix(rot.0, rot.1, rot.2);
+    n = rot_matrix * n;
+    // 3. Translate p back towards center
+    n.add([center[0], center[1], center[2]])
 }
