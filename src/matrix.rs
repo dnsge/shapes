@@ -65,7 +65,7 @@ fn vector_dot<const N: usize>(lh: [f32; N], rh: [f32; N]) -> f32 {
 }
 
 impl<const A: usize, const B: usize, const C: usize> ops::Mul<Matrix<B, C>> for Matrix<A, B> {
-    type Output = Option<Matrix<A, C>>;
+    type Output = Matrix<A, C>;
 
     fn mul(self, rhs: Matrix<B, C>) -> Self::Output {
         let mut res: Matrix<A, C> = Matrix::default();
@@ -74,20 +74,31 @@ impl<const A: usize, const B: usize, const C: usize> ops::Mul<Matrix<B, C>> for 
         // row of left multiplied by column of right
         for y in 0..A {
             for x in 0..C {
-                let curr_row: Option<[f32; B]> = self.row(y);
-                let curr_col: Option<[f32; B]> = rhs.col(x);
-
-                match (curr_row, curr_col) {
-                    (Some(row), Some(col)) => {
-                        let val = vector_dot(row, col);
-                        res[(x, y)] = val;
-                    }
-                    _ => return None
-                }
+                let curr_row: [f32; B] = self.row(y).unwrap();
+                let curr_col: [f32; B] = rhs.col(x).unwrap();
+                res[(x, y)] = vector_dot(curr_row, curr_col);
             }
         }
 
-        Some(res)
+        res
+    }
+}
+
+impl<const A: usize, const B: usize> ops::Mul<Point<B>> for Matrix<A, B> {
+    type Output = Point<A>;
+
+    /* e.g.
+     *
+     * [2 0 0]   [2]     [4]
+     * [0 2 0] * [3] --> [6]
+     * [0 0 2]   [4]     [8]
+     * [0 0 0]           [0]
+     *  4 x 3 * 3 x 1 = 4 x 1
+     *  A X B * B x 1 = A x 1
+     */
+    fn mul(self, rhs: Point<B>) -> Self::Output {
+        let as_matrix: Matrix<B, 1> = rhs.to_tall_matrix();
+        (self * as_matrix).tall_to_point()
     }
 }
 
