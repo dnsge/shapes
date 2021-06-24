@@ -1,73 +1,123 @@
-use std::fmt;
+use std::{default, fmt, ops};
 
-use crate::geo::{Point3, Point4};
-
-#[derive(Copy, Clone)]
-pub struct Matrix34(pub [[f32; 4]; 3]);
+use crate::geo::{Point, Point3, Point4};
 
 #[derive(Copy, Clone)]
-pub struct Matrix33(pub [[f32; 3]; 3]);
+pub struct Matrix<const A: usize, const B: usize> {
+    data: [[f32; B]; A],
+}
 
-impl Matrix34 {
-    pub fn dot_point4(&self, p: Point4) -> Point3 {
-        Point3::new([
-            self.0[0][0] * p[0] + self.0[0][1] * p[1] + self.0[0][2] * p[2] + self.0[0][3] * p[3],
-            self.0[1][0] * p[0] + self.0[1][1] * p[1] + self.0[1][2] * p[2] + self.0[1][3] * p[3],
-            self.0[2][0] * p[0] + self.0[2][1] * p[1] + self.0[2][2] * p[2] + self.0[2][3] * p[3],
-        ])
+impl<const A: usize, const B: usize> Matrix<A, B> {
+    pub fn new(data: [[f32; B]; A]) -> Matrix<A, B> {
+        Matrix {
+            data
+        }
+    }
+
+    pub fn row(&self, col: usize) -> Option<[f32; B]> {
+        if col >= A {
+            None
+        } else {
+            Some(self.data[col])
+        }
+    }
+
+    pub fn col(&self, row: usize) -> Option<[f32; A]> {
+        if row >= B {
+            return None;
+        }
+
+        let mut res: [f32; A] = [0.0; A];
+        for i in 0..A {
+            res[i] = self.data[i][row];
+        }
+
+        return Some(res);
     }
 }
 
-impl Matrix33 {
-    pub fn dot_point3(&self, p: Point3) -> Point3 {
-        Point3::new([
-            self.0[0][0] * p[0] + self.0[0][1] * p[1] + self.0[0][2] * p[2],
-            self.0[1][0] * p[0] + self.0[1][1] * p[1] + self.0[1][2] * p[2],
-            self.0[2][0] * p[0] + self.0[2][1] * p[1] + self.0[2][2] * p[2],
-        ])
-    }
-
-    // row of self multiplied by col of m
-    pub fn dot_matrix34(&self, m: Matrix34) -> Matrix34 {
-        Matrix34([
-            [
-                self.0[0][0] * m.0[0][0] + self.0[0][1] * m.0[1][0] + self.0[0][2] * m.0[2][0],
-                self.0[0][0] * m.0[0][1] + self.0[0][1] * m.0[1][1] + self.0[0][2] * m.0[2][1],
-                self.0[0][0] * m.0[0][2] + self.0[0][1] * m.0[1][2] + self.0[0][2] * m.0[2][2],
-                self.0[0][0] * m.0[0][3] + self.0[0][1] * m.0[1][3] + self.0[0][2] * m.0[2][3],
-            ], [
-                self.0[1][0] * m.0[0][0] + self.0[1][1] * m.0[1][0] + self.0[1][2] * m.0[2][0],
-                self.0[1][0] * m.0[0][1] + self.0[1][1] * m.0[1][1] + self.0[1][2] * m.0[2][1],
-                self.0[1][0] * m.0[0][2] + self.0[1][1] * m.0[1][2] + self.0[1][2] * m.0[2][2],
-                self.0[1][0] * m.0[0][3] + self.0[1][1] * m.0[1][3] + self.0[1][2] * m.0[2][3],
-            ], [
-                self.0[2][0] * m.0[0][0] + self.0[2][1] * m.0[1][0] + self.0[2][2] * m.0[2][0],
-                self.0[2][0] * m.0[0][1] + self.0[2][1] * m.0[1][1] + self.0[2][2] * m.0[2][1],
-                self.0[2][0] * m.0[0][2] + self.0[2][1] * m.0[1][2] + self.0[2][2] * m.0[2][2],
-                self.0[2][0] * m.0[0][3] + self.0[2][1] * m.0[1][3] + self.0[2][2] * m.0[2][3],
-            ],
-        ])
+impl<const A: usize, const B: usize> default::Default for Matrix<A, B> {
+    fn default() -> Self {
+        Matrix {
+            data: [[0.0; B]; A]
+        }
     }
 }
 
-fn format_3arr(arr: [f32; 3]) -> String {
-    format!("[{}, {}, {}]", arr[0], arr[1], arr[2])
+impl<const A: usize> Matrix<A, 1> {
+    pub fn tall_to_point(&self) -> Point<A> {
+        Point::new(self.col(0).unwrap())
+    }
 }
 
-fn format_4arr(arr: [f32; 4]) -> String {
-    format!("[{}, {}, {}, {}]", arr[0], arr[1], arr[2], arr[3])
+impl<const B: usize> Matrix<1, B> {
+    pub fn wide_to_point(&self) -> Point<B> {
+        Point::new(self.row(0).unwrap())
+    }
 }
 
-impl fmt::Display for Matrix34 {
+fn vector_dot<const N: usize>(lh: [f32; N], rh: [f32; N]) -> f32 {
+    let mut sum: f32 = 0.0;
+    for i in 0..N {
+        sum += lh[i] * rh[i];
+    }
+    sum
+}
+
+impl<const A: usize, const B: usize, const C: usize> ops::Mul<Matrix<B, C>> for Matrix<A, B> {
+    type Output = Option<Matrix<A, C>>;
+
+    fn mul(self, rhs: Matrix<B, C>) -> Self::Output {
+        let mut res: Matrix<A, C> = Matrix::default();
+
+        // matrix product
+        // row of left multiplied by column of right
+        for y in 0..A {
+            for x in 0..C {
+                let curr_row: Option<[f32; B]> = self.row(y);
+                let curr_col: Option<[f32; B]> = rhs.col(x);
+
+                match (curr_row, curr_col) {
+                    (Some(row), Some(col)) => {
+                        let val = vector_dot(row, col);
+                        res[(x, y)] = val;
+                    }
+                    _ => return None
+                }
+            }
+        }
+
+        Some(res)
+    }
+}
+
+impl<const A: usize, const B: usize> ops::Index<(usize, usize)> for Matrix<A, B> {
+    type Output = f32;
+
+    fn index(&self, index: (usize, usize)) -> &Self::Output {
+        &self.data[index.1][index.0]
+    }
+}
+
+impl<const A: usize, const B: usize> ops::IndexMut<(usize, usize)> for Matrix<A, B> {
+    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
+        &mut self.data[index.1][index.0]
+    }
+}
+
+impl<const A: usize, const B: usize> fmt::Display for Matrix<A, B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[\n\t{}\n\t{}\n\t{}\n]",
-               format_4arr(self.0[0]), format_4arr(self.0[1]), format_4arr(self.0[2]))
-    }
-}
-
-impl fmt::Display for Matrix33 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[\n\t{}\n\t{}\n\t{}\n]",
-               format_3arr(self.0[0]), format_3arr(self.0[1]), format_3arr(self.0[2]))
+        let _ = write!(f, "[\n");
+        for row in 0..A {
+            let _ = write!(f, "[");
+            for col in 0..B {
+                let _ = write!(f, "{}", self[(col, row)]);
+                if col != B - 1 {
+                    let _ = write!(f, ", ");
+                }
+            }
+            let _ = write!(f, "]\n");
+        }
+        write!(f, "]")
     }
 }

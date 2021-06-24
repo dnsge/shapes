@@ -4,6 +4,7 @@ mod render;
 
 use minifb::{Key, Window, WindowOptions};
 use geo::{Point2, Point3};
+use matrix::{Matrix};
 
 // in units
 const PIXEL_SIZE: f32 = 1.0;
@@ -35,12 +36,19 @@ impl Cube {
         ]
     }
 
-    fn map_to_screen(&self, fm: matrix::Matrix34, cm: matrix::Matrix33) -> [Point2; 8] {
+    fn map_to_screen(&self, fm: Matrix<3, 4>, cm: Matrix<3, 3>) -> [Point2; 8] {
         let mut res: [Point2; 8] = [Point2::default(); 8];
         let vertices = self.vertices();
 
         for i in 0..7 {
-            res[i] = cm.dot_point3(fm.dot_point4(vertices[i].euc_to_hom())).hom_to_euc()
+            let projected: Option<Matrix<3, 1>> = fm * (vertices[i].euc_to_hom().to_tall_matrix());
+            if let Some(proj_point) = projected {
+                let converted: Option<Matrix<3, 1>> = cm * proj_point;
+                if let Some(conv_point) = converted {
+                    res[i] = conv_point.tall_to_point().hom_to_euc();
+                }
+            }
+
         }
 
         return res;
@@ -49,7 +57,7 @@ impl Cube {
 
 fn main() {
     let focal_matrix = render::make_focal_matrix(0.0, 0.0);
-    let coordinate_mapping_matrix = render::make_scaling_matrix(PIXEL_SIZE, WIDTH * 2, HEIGHT);
+    // let coordinate_mapping_matrix = render::make_scaling_matrix(PIXEL_SIZE, 4, 4);
 
     let mut my_cube = Cube {
         origin: Point3::new([-10.0, 0.0, 10.0]),
@@ -64,7 +72,6 @@ fn main() {
         WindowOptions::default(),
     ).unwrap();
 
-    // ~30 fps
     window.limit_update_rate(Some(std::time::Duration::from_micros(1000000 / FPS)));
 
     let now = std::time::SystemTime::now();
@@ -79,9 +86,10 @@ fn main() {
         my_cube.size = f32::abs(f32::cos(elapsed) * 4.0);
 
         screen.clear(0x000000);
-        for v in my_cube.vertices() { //my_cube.map_to_screen(focal_matrix, coordinate_mapping_matrix) {
-            let projected = focal_matrix.dot_point4(v.euc_to_hom()).hom_to_euc();
-            // let screen_point = coordinate_mapping_matrix.dot_point3(projected).hom_to_euc();
+        for v in my_cube.vertices() {
+            // project point onto z = 1
+            let projected = (focal_matrix * (v.euc_to_hom().to_tall_matrix())).unwrap().tall_to_point().hom_to_euc();
+            // convert point at (x, y, 1) to screen space
             let screen_point = render::projection_to_raster(projected, (4, 4), screen.size());
 
             if let Some(pixel) = screen.get_pixel(screen_point) {

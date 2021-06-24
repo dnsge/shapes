@@ -1,4 +1,5 @@
 use std::{default, fmt, ops};
+use crate::matrix::{Matrix};
 
 #[derive(Copy, Clone)]
 pub struct Point<const D: usize> {
@@ -38,6 +39,18 @@ impl<const D: usize> Point<D> {
 
     pub fn last(&self) -> f32 {
         self.coords[D - 1]
+    }
+
+    pub fn to_wide_matrix(&self) -> Matrix<1, D> {
+        Matrix::new([self.coords])
+    }
+
+    pub fn to_tall_matrix(&self) -> Matrix<D, 1> {
+        let mut res: Matrix<D, 1> = Matrix::default();
+        for i in 0..D {
+            res[(0, i)] = self.coords[i];
+        }
+        res
     }
 }
 
