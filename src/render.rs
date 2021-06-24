@@ -24,6 +24,14 @@ impl Screen {
         }
     }
 
+    pub fn get_coords_i(&mut self, x: isize, y: isize) -> Option<&mut u32> {
+        if x < 0 || y < 0 {
+            None
+        } else {
+            self.get_coords(x as usize, y as usize)
+        }
+    }
+
     pub fn get_pixel(&mut self, pixel: (usize, usize)) -> Option<&mut u32> {
         self.get_coords(pixel.0, pixel.1)
     }
@@ -54,6 +62,54 @@ impl Screen {
 
     pub fn buffer(&self) -> &[u32] {
         &self.buffer
+    }
+
+    // adapted from http://www.sunshine2k.de/java.html#bresenham
+    pub fn draw_line(&mut self, p1: (isize, isize), p2: (isize, isize), color: u32) {
+        let mut x = p1.0;
+        let mut y = p1.1;
+
+        let mut dx = isize::abs(p2.0 - p1.0);
+        let mut dy = isize::abs(p2.1 - p1.1);
+        let sign_x = isize::signum(p2.0 - p1.0);
+        let sign_y = isize::signum(p2.1 - p1.1);
+
+        let mut swapped = false;
+        if dy > dx { // swap
+            swapped = true;
+            let tmp = dy;
+            dy = dx;
+            dx = tmp;
+        }
+
+        let mut err = (dy as f32) / (dx as f32) - 0.5;
+
+        for _ in 1..=dx {
+            if let Some(pixel) = self.get_coords_i(x, y) {
+                *pixel = color;
+            }
+
+            while err >= 0.0 {
+                if swapped {
+                    x += sign_x;
+                } else {
+                    y += sign_y;
+                }
+                err -= 1.0;
+            }
+
+            if swapped {
+                y += sign_y;
+            } else {
+                x += sign_x;
+            }
+
+            err += (dy as f32) / (dx as f32);
+        }
+
+        if let Some(pixel) = self.get_coords_i(p2.0, p2.1) {
+            *pixel = color;
+        }
     }
 }
 
