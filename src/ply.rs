@@ -70,28 +70,8 @@ impl Object {
             let mut from_center: Point3 = v.sub_point(center);
             *v = from_center.scale(by).add_point(center);
         });
-        self.recompute_bounds();
+        self.bounds = compute_bounds(&self.vertices);
         self.faces = map_faces(&self.face_indexes, &self.vertices);
-    }
-
-    fn recompute_bounds(&mut self) {
-        let mut min_x: f32 = 0.0;
-        let mut max_x: f32 = 0.0;
-        let mut min_y: f32 = 0.0;
-        let mut max_y: f32 = 0.0;
-        let mut min_z: f32 = 0.0;
-        let mut max_z: f32 = 0.0;
-
-        for v in &self.vertices {
-            min_x = f32::min(min_x, v[0]);
-            max_x = f32::max(max_x, v[0]);
-            min_y = f32::min(min_y, v[1]);
-            max_y = f32::max(max_y, v[1]);
-            min_z = f32::min(min_z, v[2]);
-            max_z = f32::max(max_z, v[2]);
-        }
-
-        self.bounds = (max_x - min_x, max_y - min_y, max_z - min_z);
     }
 
     pub fn faces(&self) -> &Vec<Face> {
@@ -118,31 +98,17 @@ pub fn load(path: &str) -> Object {
     let vertex_count = ply.header.elements["vertex"].count;
     vertices.reserve(vertex_count);
 
-    let mut min_x: f32 = 0.0;
-    let mut max_x: f32 = 0.0;
-    let mut min_y: f32 = 0.0;
-    let mut max_y: f32 = 0.0;
-    let mut min_z: f32 = 0.0;
-    let mut max_z: f32 = 0.0;
-
     for p in &ply.payload["vertex"] {
         if let Some(x) = scalar_to_float(&p["x"]) {
             if let Some(y) = scalar_to_float(&p["y"]) {
                 if let Some(z) = scalar_to_float(&p["z"]) {
-                    min_x = f32::min(min_x, x);
-                    max_x = f32::max(max_x, x);
-                    min_y = f32::min(min_y, y);
-                    max_y = f32::max(max_y, y);
-                    min_z = f32::min(min_z, z);
-                    max_z = f32::max(max_z, z);
-
                     vertices.push(Point3::new([x, y, z]));
                 }
             }
         }
     }
 
-    let bounds = (max_x - min_x, max_y - min_y, max_z - min_z);
+    let bounds = compute_bounds(&vertices);
     let center = Point3::new([bounds.0 / 2.0, bounds.1 / 2.0, bounds.2 / 2.0]);
 
     vertices.iter_mut().for_each(|p| {
@@ -192,6 +158,26 @@ pub fn load(path: &str) -> Object {
         faces,
         face_indexes,
     }
+}
+
+fn compute_bounds(vertices: &Vec<Point3>) -> (f32, f32, f32) {
+    let mut min_x: f32 = 0.0;
+    let mut max_x: f32 = 0.0;
+    let mut min_y: f32 = 0.0;
+    let mut max_y: f32 = 0.0;
+    let mut min_z: f32 = 0.0;
+    let mut max_z: f32 = 0.0;
+
+    for v in &vertices {
+        min_x = f32::min(min_x, v[0]);
+        max_x = f32::max(max_x, v[0]);
+        min_y = f32::min(min_y, v[1]);
+        max_y = f32::max(max_y, v[1]);
+        min_z = f32::min(min_z, v[2]);
+        max_z = f32::max(max_z, v[2]);
+    }
+
+    (max_x - min_x, max_y - min_y, max_z - min_z)
 }
 
 fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Face> {
