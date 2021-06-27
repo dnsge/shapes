@@ -23,7 +23,7 @@ pub struct Scene<T, S, F>
     background_color: u32,
 
     update_func: F,
-    last_state: Option<S>
+    last_state: Option<S>,
 }
 
 impl<T, S, F> Scene<T, S, F>
@@ -33,6 +33,12 @@ impl<T, S, F> Scene<T, S, F>
 {
     pub fn move_camera(&mut self, x: f32, y: f32) {
         self.camera = render::make_focal_matrix(x, y)
+    }
+
+    pub fn draw_frame(&mut self, state: S) {
+        self.screen.clear(self.background_color);
+        self.object.render(&mut self.screen, &self.camera, state);
+        self.last_state = Some(state);
     }
 
     pub fn run(&mut self) {
@@ -45,19 +51,13 @@ impl<T, S, F> Scene<T, S, F>
             let new_state: S = (self.update_func)(&self.screen, &self.window);
 
             // Only render if state has changed
-            match self.last_state {
-                Some(old_state) => {
-                    if old_state != new_state {
-                        self.screen.clear(self.background_color);
-                        self.object.render(&mut self.screen, &self.camera, new_state);
-                        self.last_state = Some(new_state);
-                    }
-                }
-                None => {
-                    self.screen.clear(self.background_color);
-                    self.object.render(&mut self.screen, &self.camera, new_state);
-                    self.last_state = Some(new_state);
-                }
+            let should_update: bool = match self.last_state {
+                Some(old_state) => old_state != new_state,
+                None => true,
+            };
+
+            if should_update {
+                self.draw_frame(new_state);
             }
 
             // Render buffer to screen
@@ -91,7 +91,7 @@ impl<T, S, F> Scene<T, S, F>
             camera: render::make_focal_matrix(0.0, 0.0),
             background_color,
             update_func,
-            last_state: None
+            last_state: None,
         }
     }
 }
