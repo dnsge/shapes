@@ -2,7 +2,7 @@ use std::{default, fmt, ops};
 use crate::matrix::{Matrix};
 use crate::render::make_rotation_matrix;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Point<const D: usize> {
     coords: [f32; D],
 }
@@ -30,8 +30,36 @@ impl<const D: usize> Point<D> {
         Point::new(res)
     }
 
+    pub fn sub(&self, other: [f32; D]) -> Point<D> {
+        let mut res: [f32; D] = [0.0; D];
+        for i in 0..D {
+            res[i] = self.coords[i] - other[i];
+        }
+        Point::new(res)
+    }
+
+    pub fn scale(&self, by: f32) -> Point<D> {
+        let mut res: [f32; D] = [0.0; D];
+        for i in 0..D {
+            res[i] = self.coords[i] * by;
+        }
+        Point::new(res)
+    }
+
     pub fn add_point(&self, other: Point<D>) -> Point<D> {
         self.add(other.coords)
+    }
+
+    pub fn sub_point(&self, other: Point<D>) -> Point<D> {
+        self.sub(other.coords)
+    }
+
+    pub fn dot(&self, other: Point<D>) -> f32 {
+        let mut total: f32 = 0.0;
+        for i in 0..D {
+            total += self[i] * other[i];
+        }
+        total
     }
 
     pub fn first(&self) -> f32 {
@@ -128,14 +156,25 @@ impl Point3 {
     pub fn euc_to_hom(&self) -> Point4 {
         Point4::new([self[0], self[1], self[2], 1.0])
     }
+
+    pub fn cross(&self, other: Point3) -> Point3 {
+        Point3::new([
+            self[1] * other[2] - self[2] * other[1],
+            -(self[0] * other[2] - self[2] * other[0]),
+            self[0] * other[1] - self[1] * other[0]
+        ])
+    }
 }
 
 pub fn rotate_point(p: Point3, center: Point3, rot: (f32, f32, f32)) -> Point3 {
-    // 1. Translate p towards origin
-    let mut n = p.add([-center[0], -center[1], -center[2]]);
+    rotate_point_with_matrix(p, center, &make_rotation_matrix(rot.0, rot.1, rot.2))
+}
+
+pub fn rotate_point_with_matrix(p: Point3, center: Point3, rot_matrix: &Matrix<3, 3>) -> Point3 {
+    // 1. Translate p so that center is now at origin
+    let mut n = p.sub_point(center);
     // 2. Rotate n about origin by rot
-    let rot_matrix = make_rotation_matrix(rot.0, rot.1, rot.2);
-    n = rot_matrix * n;
+    n = *rot_matrix * n;
     // 3. Translate p back towards center
-    n.add([center[0], center[1], center[2]])
+    n.add_point(center)
 }

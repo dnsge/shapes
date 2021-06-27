@@ -1,17 +1,52 @@
 use ply_rs;
-use crate::geo;
-use crate::geo::Point3;
 use ply_rs::ply::Property;
-use std::convert::{TryFrom, TryInto};
+
+use std::convert::{TryFrom};
+use std::{ops, fmt};
 use std::ops::Index;
 
-pub struct Object<const N: usize> {
-    pub offset: Point3,
+use crate::geo::Point3;
+
+pub struct Surface {
     vertices: Vec<Point3>,
-    faces: Vec<[usize; N]>,
 }
 
-impl<const N: usize> Object<N> {
+impl Surface {
+    fn new(vertices: Vec<Point3>) -> Surface {
+        Surface {
+            vertices
+        }
+    }
+
+    pub fn vertices(&self) -> &Vec<Point3> {
+        &self.vertices
+    }
+}
+
+impl ops::Index<usize> for Surface {
+    type Output = Point3;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.vertices[index]
+    }
+}
+
+impl ops::IndexMut<usize> for Surface {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.vertices[index]
+    }
+}
+
+pub struct Object {
+    center: Point3,
+    bounds: (f32, f32, f32),
+
+    vertices: Vec<Point3>,
+    surfaces: Vec<Surface>,
+}
+
+// todo: consider returning references throughout program
+impl Object {
     fn get_vertex_safe(&self, index: usize) -> Point3 {
         if index >= self.vertices.len() {
             Point3::default()
@@ -20,86 +55,105 @@ impl<const N: usize> Object<N> {
         }
     }
 
-    fn get_vertex_safe_with_offset(&self, index: usize) -> Point3 {
-        if index >= self.vertices.len() {
-            Point3::default()
-        } else {
-            self.vertices[index].add_point(self.offset)
+    pub fn vertices(&self) -> &Vec<Point3> {
+        &self.vertices
+    }
+
+    pub fn center(&self) -> Point3 {
+        self.center
+    }
+
+    pub fn scale(&mut self, by: f32) {
+        let center = self.center;
+        self.vertices.iter_mut().for_each(|v| {
+            let mut from_center: Point3 = v.sub_point(center);
+            *v = from_center.scale(by);
+        });
+        self.recompute_bounds();
+    }
+
+    fn recompute_bounds(&mut self) {
+        let mut min_x: f32 = 0.0;
+        let mut max_x: f32 = 0.0;
+        let mut min_y: f32 = 0.0;
+        let mut max_y: f32 = 0.0;
+        let mut min_z: f32 = 0.0;
+        let mut max_z: f32 = 0.0;
+
+        for v in &self.vertices {
+            min_x = f32::min(min_x, v[0]);
+            max_x = f32::max(max_x, v[0]);
+            min_y = f32::min(min_y, v[1]);
+            max_y = f32::max(max_y, v[1]);
+            min_z = f32::min(min_z, v[2]);
+            max_z = f32::max(max_z, v[2]);
         }
+
+        self.bounds = (max_x - min_x, max_y - min_y, max_z - min_z);
+        self.center = Point3::new([self.bounds.0 / 2.0, self.bounds.1 / 2.0, self.bounds.2 / 2.0]);
     }
 
-    pub fn vertices(&self) -> Vec<Point3> {
-        self.vertices.iter().map(|v| v.add_point(self.offset)).collect()
-    }
-}
-
-impl Object<3> {
-    pub fn surfaces(&self) -> Vec<[Point3; 3]> {
-        self.faces.iter().map(|arr| {
-            [
-                self.get_vertex_safe_with_offset(arr[0]),
-                self.get_vertex_safe_with_offset(arr[1]),
-                self.get_vertex_safe_with_offset(arr[2]),
-            ]
-        }).collect()
+    pub fn surfaces(&self) -> &Vec<Surface> {
+        &self.surfaces
     }
 }
 
-impl Object<4> {
-    pub fn surfaces(&self) -> Vec<[Point3; 3]> {
-        self.faces.iter().flat_map(|arr| {
-            let mut sp_v: Vec<Point3> = vec![
-                self.get_vertex_safe(arr[0]),
-                self.get_vertex_safe(arr[1]),
-                self.get_vertex_safe(arr[2]),
-                self.get_vertex_safe(arr[3]),
-            ];
-
-            sp_v.sort_by(|p1, p2| {
-                if let Some(res) = p1[0].partial_cmp(&p2[0]) {
-                    res
-                } else {
-                    std::cmp::Ordering::Less
-                }
-            });
-
-            let sp: [Point3; 4] = sp_v.try_into().unwrap_or_else(|e| panic!("failed to unwrap sp_v"));
-
-            [[sp[0], sp[1], sp[2]], [sp[1], sp[2], sp[3]]]
-        }).map(|p| {
-            [
-                p[0].add_point(self.offset),
-                p[1].add_point(self.offset),
-                p[2].add_point(self.offset)
-            ]
-        }).collect()
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "center: {} bounds: {} x {} x {}", self.center, self.bounds.0, self.bounds.1, self.bounds.2)
     }
 }
 
-pub fn load<const N: usize>(path: &str) -> Object<N> {
+pub fn load(path: &str) -> Object {
     let mut f = std::fs::File::open(path).unwrap();
     let p = ply_rs::parser::Parser::<ply_rs::ply::DefaultElement>::new();
     let ply = p.read_ply(&mut f);
 
     assert!(ply.is_ok());
     let mut ply = ply.unwrap();
-    println!("Header: {:#?}", ply.header);
+    println!("Loaded object | Header: {:#?}", ply.header);
 
     let mut vertices = Vec::<Point3>::new();
-    vertices.reserve(ply.header.elements["vertex"].count);
+    let vertex_count = ply.header.elements["vertex"].count;
+    vertices.reserve(vertex_count);
+
+    let mut min_x: f32 = 0.0;
+    let mut max_x: f32 = 0.0;
+    let mut min_y: f32 = 0.0;
+    let mut max_y: f32 = 0.0;
+    let mut min_z: f32 = 0.0;
+    let mut max_z: f32 = 0.0;
+
     for p in &ply.payload["vertex"] {
         if let Some(x) = scalar_to_float(&p["x"]) {
             if let Some(y) = scalar_to_float(&p["y"]) {
                 if let Some(z) = scalar_to_float(&p["z"]) {
+                    min_x = f32::min(min_x, x);
+                    max_x = f32::max(max_x, x);
+                    min_y = f32::min(min_y, y);
+                    max_y = f32::max(max_y, y);
+                    min_z = f32::min(min_z, z);
+                    max_z = f32::max(max_z, z);
+
                     vertices.push(Point3::new([x, y, z]));
                 }
             }
         }
     }
 
+    let bounds = (max_x - min_x, max_y - min_y, max_z - min_z);
+    let center = Point3::new([bounds.0 / 2.0, bounds.1 / 2.0, bounds.2 / 2.0]);
+
+    vertices.iter_mut().for_each(|p| {
+        *p = p.add_point(center)
+    });
+
     let vertex_index_name = ply.header.elements["face"].properties.iter().next().unwrap().0;
-    let mut faces = Vec::<[usize; N]>::new();
-    faces.reserve(ply.header.elements["face"].count);
+
+    let mut surfaces: Vec<Surface> = Vec::new();
+    let surface_count = ply.header.elements["face"].count;
+    surfaces.reserve(surface_count);
+
     for mut f in ply.payload.remove("face").unwrap() {
         let vi = f.remove(vertex_index_name);
         if let Some(t) = vi {
@@ -113,17 +167,26 @@ pub fn load<const N: usize>(path: &str) -> Object<N> {
                 v => panic!("Unexpected property value {:#?}", v),
             };
 
-            let surface_arr: [usize; N] = surface_vec.try_into()
-                .unwrap_or_else(|v: Vec<usize>| panic!("Expected a Vec of length {} but it was {}", N, v.len()));
+            // make sure nothing is out of bounds
+            for (n, &vertex_index) in surface_vec.iter().enumerate() {
+                if vertex_index >= vertex_count {
+                    panic!("out of bounds vertex index on face {}: {}", n, vertex_index)
+                }
+            }
 
-            faces.push(surface_arr);
+            if surface_vec.len() < 3 { // invalid face
+                panic!("invalid face with {} vertices", surface_vec.len())
+            }
+
+            surfaces.push(Surface::new(surface_vec.iter().map(|&n| vertices[n]).collect()));
         }
     }
 
     Object {
-        offset: Point3::default(),
+        center,
+        bounds,
         vertices,
-        faces,
+        surfaces,
     }
 }
 

@@ -1,5 +1,7 @@
-use crate::geo::{Point2};
+use crate::geo::{Point2, Point3, rotate_point, rotate_point_with_matrix};
 use crate::matrix::{Matrix};
+use crate::ply::Object;
+use crate::scene::Renderer;
 
 pub struct Screen {
     buffer: Vec<u32>,
@@ -64,8 +66,99 @@ impl Screen {
         &self.buffer
     }
 
+    pub fn outside_screen(&self, p: (isize, isize)) -> bool {
+        (p.0 < 0 || p.0 >= (self.width as isize)) // outside x
+            || (p.1 < 0 || p.1 >= (self.height as isize)) // outside y
+    }
+
+    pub fn inside_screen(&self, p: (isize, isize)) -> bool {
+        (0 < p.0 && p.0 < (self.width as isize)) // inside x
+            && (0 < p.1 && p.1 < (self.height as isize)) // inside y
+    }
+
+    // Attempts to bring a point inside the screen along a line
+    //
+    // For example:
+    //                    +
+    //                   /
+    //                  /
+    //       +---------+----------------+
+    //       |        /                 |
+    //       |       /                  |
+    //       |      /                   |
+    //
+    // A line is projected through the original point to the intersection with the window.
+    fn bring_inside(&self, p: (isize, isize), slope: f32) -> (isize, isize) {
+        // precondition: point is outside of screen
+
+        if slope.is_nan() { // dy = dx = 0 leads to indeterminate form 0.0/0.0 = NaN
+            return p;
+        }
+
+        let is_vertical: bool = slope.is_infinite();
+        let below = p.1 < 0;
+        let above = p.1 >= self.height as isize;
+        let left = p.0 < 0;
+        let right = p.0 >= self.width as isize;
+
+        if (above || below) && slope == 0.0 {
+            return p;
+        }
+
+        if (left || right) && is_vertical {
+            return p;
+        }
+
+        let old_x = p.0 as f32;
+        let old_y = p.1 as f32;
+        let mut new_x = old_x;
+        let mut new_y = old_y;
+
+        if is_vertical {
+            if below {
+                new_y = 0.0;
+            } else if above {
+                new_y = (self.height - 1) as f32;
+            }
+        } else {
+            if left || right {
+                if left {
+                    new_x = 0.0;
+                } else {
+                    new_x = (self.width as isize - 1) as f32;
+                }
+                let dx = (new_x - old_x);
+                new_y = dx * slope + old_y;
+            } else if above || below { // at this point this should always be true, but whatever
+                if below {
+                    new_y = 0.0
+                } else {
+                    new_y = (self.height as isize - 1) as f32;
+                }
+                let dy = new_y - old_y;
+                new_x = dy / slope + old_x;
+            }
+        }
+
+        (new_x as isize, new_y as isize)
+    }
+
     // adapted from http://www.sunshine2k.de/java.html#bresenham
-    pub fn draw_line(&mut self, p1: (isize, isize), p2: (isize, isize), color: u32) {
+    pub fn draw_line(&mut self, mut p1: (isize, isize), mut p2: (isize, isize), color: u32) {
+        let slope: f32 = (p2.1 as f32 - p1.1 as f32) / (p2.0 as f32 - p1.0 as f32);
+
+        if self.outside_screen(p1) {
+            p1 = self.bring_inside(p1, slope);
+        }
+
+        if self.outside_screen(p2) {
+            p2 = self.bring_inside(p2, slope);
+        }
+
+        if self.outside_screen(p1) || self.outside_screen(p2) {
+            return;
+        }
+
         let mut x = p1.0;
         let mut y = p1.1;
 
@@ -112,9 +205,24 @@ impl Screen {
         }
     }
 
+    // Naive implementation of checking if triangle is within the screen
+    // Simple bounding box check
+    fn should_draw_triangle(&self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize)) -> bool {
+        let min_x = isize::min(p1.0, isize::min(p2.0, p3.0));
+        let max_x = isize::max(p1.0, isize::max(p2.0, p3.0));
+        let min_y = isize::min(p1.1, isize::min(p2.1, p3.1));
+        let max_y = isize::max(p1.1, isize::max(p2.1, p3.1));
+
+        self.inside_screen((max_x, max_y)) || self.inside_screen((min_x, min_y)) || self.inside_screen((max_x, min_y)) || self.inside_screen((min_x, max_y))
+    }
+
     pub fn fill_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
+        if !self.should_draw_triangle(p1, p2, p3) {
+            return;
+        }
+
         let mut points = vec![p1, p2, p3];
-        points.sort_by_key(|p| {
+        points.sort_by_key(|p| { // sort by point y values
             p.1
         });
 
@@ -127,6 +235,17 @@ impl Screen {
             self.fill_bottom_triangle(points[0], points[1], p4, color);
             self.fill_top_triangle(points[1], p4, points[2], color);
         }
+    }
+
+    pub fn fill_triangle_edge(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32, edge_color: u32) {
+        if !self.should_draw_triangle(p1, p2, p3) {
+            return;
+        }
+
+        self.fill_triangle(p1, p2, p3, color);
+        self.draw_line(p1, p2, edge_color);
+        self.draw_line(p2, p3, edge_color);
+        self.draw_line(p1, p3, edge_color);
     }
 
     fn fill_bottom_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
@@ -204,4 +323,105 @@ fn ndc_to_screen(ndc: Point2, screen_size: (usize, usize)) -> (isize, isize) {
 pub fn projection_to_screen(p: Point2, proj_size: (usize, usize), screen_size: (usize, usize)) -> (isize, isize) {
     let ndc = projection_to_ndc(p, proj_size.0, proj_size.1); // move to normalized device coordinates
     ndc_to_screen(ndc, screen_size) // move to screen coordinates
+}
+
+#[derive(Default, Copy, Clone, PartialEq)]
+pub struct ObjectOrientation {
+    pub position: Point3,
+    pub rotation: (f32, f32, f32),
+}
+
+struct Triangle {
+    vertices: [(isize, isize); 3],
+    color: u32,
+}
+
+impl Renderer<ObjectOrientation> for Object {
+    fn render(&self, screen: &mut Screen, camera: &Matrix<3, 4>, state: ObjectOrientation) {
+        // Rendering the object performs the following steps:
+        // 1a. Rotate every surface around the object center
+        // 1b. Transform object to position
+        // 2. Project each surface to z=1 plane
+        // 3. Convert to screen coordinates
+        // 4. Break surfaces into triangles
+        // 5. Raster triangles
+
+        // Rotate surfaces and transform to position
+        // todo: combine actions into single world matrix operation
+        let transform_vector: Point3 = state.position.sub_point(self.center());
+        let rotation_matrix = make_rotation_matrix(state.rotation.0, state.rotation.1, state.rotation.2);
+        let surfaces: Vec<Vec<Point3>> = self.surfaces().iter()
+            .map(|s| {
+                s.vertices().iter()
+                    .map(|&p| {
+                        let rotated = rotate_point_with_matrix(p, self.center(), &rotation_matrix);
+                        rotated.add_point(transform_vector)
+                    })
+                    .collect()
+            })
+            .filter(|s: &Vec<Point3>| {
+                let mut inside = false;
+                for p in s {
+                    if p[2] >= 1.0 {
+                        inside = true;
+                        break;
+                    }
+                }
+                inside
+            })
+            .filter(|s: &Vec<Point3>| {
+                // Let triangle ABC be defined by the points s[0], s[1], and s[2]
+                //
+                // 1. ABC has a surface normal N defined by the cross product of two of its legs,
+                //     N = AB X AC
+                // 2. ABC has a vector from the camera to its first vertex,
+                //     D = A - C
+                //    where C is the camera position.
+                //
+                // When D·N >= 0, the triangle should not be rendered.
+                //
+                // ref: https://en.wikipedia.org/wiki/Back-face_culling
+
+                let vec1 = s[1].sub_point(s[0]); // vector A-->B
+                let vec2 = s[2].sub_point(s[0]); // vector A-->C
+                let surface_normal = vec1.cross(vec2);
+                let dot = s[0].sub([0.0, 0.0, 0.0]).dot(surface_normal);
+
+                dot < 0.0
+            })
+            .collect();
+
+        // todo: handle z = 0, out of viewport, clipping z < 1, etc.
+        let mut triangles: Vec<Triangle> = Vec::new();
+        for s in &surfaces {
+            let z_space_points: Vec<Point2> = s.iter().map(|p| {
+                (*camera * p.euc_to_hom()).hom_to_euc()
+            }).collect();
+
+            let mut any_inside = false;
+            for p in &z_space_points {
+                if p[0].abs() <= 1.0 || p[1].abs() <= 1.0 {
+                    any_inside = true;
+                    break;
+                }
+            }
+
+            if !any_inside {
+                continue;
+            }
+
+            let projected_points: Vec<(isize, isize)> = z_space_points.iter().map(|&p| {
+                projection_to_screen(p, (2, 2), screen.size())
+            }).collect();
+
+            triangles.push(Triangle {
+                vertices: [projected_points[0], projected_points[1], projected_points[2]],
+                color: 0x555555,
+            });
+        }
+
+        for triangle in triangles {
+            screen.fill_triangle_edge(triangle.vertices[0], triangle.vertices[1], triangle.vertices[2], triangle.color, 0x000000);
+        }
+    }
 }
