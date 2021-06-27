@@ -62,6 +62,18 @@ impl<const D: usize> Point<D> {
         total
     }
 
+    pub fn magnitude(&self) -> f32 {
+        let mut total: f32 = 0.0;
+        for i in 0..D {
+            total += self[i].powi(2);
+        }
+        total.sqrt()
+    }
+
+    pub fn normalize(&self) -> Point<D> {
+        self.scale(self.magnitude().recip())
+    }
+
     pub fn first(&self) -> f32 {
         self.coords[0]
     }

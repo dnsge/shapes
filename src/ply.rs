@@ -7,13 +7,13 @@ use std::ops::Index;
 
 use crate::geo::Point3;
 
-pub struct Surface {
+pub struct Face {
     vertices: Vec<Point3>,
 }
 
-impl Surface {
-    fn new(vertices: Vec<Point3>) -> Surface {
-        Surface {
+impl Face {
+    fn new(vertices: Vec<Point3>) -> Face {
+        Face {
             vertices
         }
     }
@@ -23,7 +23,7 @@ impl Surface {
     }
 }
 
-impl ops::Index<usize> for Surface {
+impl ops::Index<usize> for Face {
     type Output = Point3;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -31,7 +31,7 @@ impl ops::Index<usize> for Surface {
     }
 }
 
-impl ops::IndexMut<usize> for Surface {
+impl ops::IndexMut<usize> for Face {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.vertices[index]
     }
@@ -42,8 +42,8 @@ pub struct Object {
     bounds: (f32, f32, f32),
 
     vertices: Vec<Point3>,
-    surfaces: Vec<Surface>,
-    surface_indexes: Vec<Vec<usize>>,
+    faces: Vec<Face>,
+    face_indexes: Vec<Vec<usize>>,
 }
 
 // todo: consider returning references throughout program
@@ -71,7 +71,7 @@ impl Object {
             *v = from_center.scale(by).add_point(center);
         });
         self.recompute_bounds();
-        self.surfaces = map_surfaces(&self.surface_indexes, &self.vertices);
+        self.faces = map_faces(&self.face_indexes, &self.vertices);
     }
 
     fn recompute_bounds(&mut self) {
@@ -94,8 +94,8 @@ impl Object {
         self.bounds = (max_x - min_x, max_y - min_y, max_z - min_z);
     }
 
-    pub fn surfaces(&self) -> &Vec<Surface> {
-        &self.surfaces
+    pub fn faces(&self) -> &Vec<Face> {
+        &self.faces
     }
 }
 
@@ -151,14 +151,14 @@ pub fn load(path: &str) -> Object {
 
     let vertex_index_name = ply.header.elements["face"].properties.iter().next().unwrap().0;
 
-    let mut surface_indexes: Vec<Vec<usize>> = Vec::new();
-    let surface_count = ply.header.elements["face"].count;
-    surface_indexes.reserve(surface_count);
+    let mut face_indexes: Vec<Vec<usize>> = Vec::new();
+    let face_count = ply.header.elements["face"].count;
+    face_indexes.reserve(face_count);
 
     for mut f in ply.payload.remove("face").unwrap() {
         let vi = f.remove(vertex_index_name);
         if let Some(t) = vi {
-            let surface_vec: Vec<usize> = match t {
+            let face_vec: Vec<usize> = match t {
                 Property::ListChar(l) => conv_vec_to_usize(l),
                 Property::ListUChar(l) => conv_vec_to_usize(l),
                 Property::ListShort(l) => conv_vec_to_usize(l),
@@ -169,34 +169,34 @@ pub fn load(path: &str) -> Object {
             };
 
             // make sure nothing is out of bounds
-            for (n, &vertex_index) in surface_vec.iter().enumerate() {
+            for (n, &vertex_index) in face_vec.iter().enumerate() {
                 if vertex_index >= vertex_count {
                     panic!("out of bounds vertex index on face {}: {}", n, vertex_index)
                 }
             }
 
-            if surface_vec.len() < 3 { // invalid face
-                panic!("invalid face with {} vertices", surface_vec.len())
+            if face_vec.len() < 3 { // invalid face
+                panic!("invalid face with {} vertices", face_vec.len())
             }
 
-            surface_indexes.push(surface_vec);
+            face_indexes.push(face_vec);
         }
     }
 
-    let surfaces = map_surfaces(&surface_indexes, &vertices);
+    let faces = map_faces(&face_indexes, &vertices);
 
     Object {
         center,
         bounds,
         vertices,
-        surfaces,
-        surface_indexes,
+        faces,
+        face_indexes,
     }
 }
 
-fn map_surfaces(surface_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Surface> {
-    surface_indexes.iter().map(|si| {
-        Surface::new(si.iter().map(|&n| vertices[n]).collect())
+fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Face> {
+    face_indexes.iter().map(|si| {
+        Face::new(si.iter().map(|&n| vertices[n]).collect())
     }).collect()
 }
 

@@ -2,6 +2,7 @@ use crate::geo::{Point2, Point3, rotate_point, rotate_point_with_matrix};
 use crate::matrix::{Matrix};
 use crate::ply::Object;
 use crate::scene::Renderer;
+use crate::render::SurfaceOrientation::AwayFromCamera;
 
 pub struct Screen {
     buffer: Vec<u32>,
@@ -336,6 +337,19 @@ struct Triangle {
     color: u32,
 }
 
+#[derive(Eq, PartialEq)]
+enum SurfaceOrientation {
+    TowardsCamera,
+    AwayFromCamera,
+}
+
+struct Surface {
+    vertices: Vec<Point3>,
+    surface_normal: Point3,
+    camera_surface_dot: f32,
+    orientation: SurfaceOrientation,
+}
+
 impl Renderer<ObjectOrientation> for Object {
     fn render(&self, screen: &mut Screen, camera: &Matrix<3, 4>, state: ObjectOrientation) {
         // Rendering the object performs the following steps:
@@ -350,16 +364,16 @@ impl Renderer<ObjectOrientation> for Object {
         // todo: combine actions into single world matrix operation
         let transform_vector: Point3 = state.position.sub_point(self.center());
         let rotation_matrix = make_rotation_matrix(state.rotation.0, state.rotation.1, state.rotation.2);
-        let surfaces: Vec<Vec<Point3>> = self.surfaces().iter()
-            .map(|s| {
-                s.vertices().iter()
+        let surfaces: Vec<Surface> = self.faces().iter()
+            .map(|f| {
+                f.vertices().iter()
                     .map(|&p| {
                         let rotated = rotate_point_with_matrix(p, self.center(), &rotation_matrix);
                         rotated.add_point(transform_vector)
                     })
                     .collect()
             })
-            .filter(|s: &Vec<Point3>| {
+            .filter(|s: &Vec<Point3>| { // remove surfaces where z < 1
                 let mut inside = false;
                 for p in s {
                     if p[2] >= 1.0 {
@@ -369,7 +383,7 @@ impl Renderer<ObjectOrientation> for Object {
                 }
                 inside
             })
-            .filter(|s: &Vec<Point3>| {
+            .map(|s| {
                 // Let triangle ABC be defined by the points s[0], s[1], and s[2]
                 //
                 // 1. ABC has a surface normal N defined by the cross product of two of its legs,
@@ -384,17 +398,32 @@ impl Renderer<ObjectOrientation> for Object {
 
                 let vec1 = s[1].sub_point(s[0]); // vector A-->B
                 let vec2 = s[2].sub_point(s[0]); // vector A-->C
-                let surface_normal = vec1.cross(vec2);
-                let dot = s[0].sub([0.0, 0.0, 0.0]).dot(surface_normal);
+                let surface_normal = vec1.cross(vec2).normalize();
+                let dot = s[0].sub([0.0, 0.0, 0.0]).normalize().dot(surface_normal);
 
-                dot < 0.0
+                let orientation = if dot < 0.0 {
+                    SurfaceOrientation::TowardsCamera
+                } else {
+                    SurfaceOrientation::AwayFromCamera
+                };
+
+                Surface {
+                    vertices: s,
+                    surface_normal,
+                    camera_surface_dot: dot,
+                    orientation,
+                }
             })
             .collect();
 
         // todo: handle z = 0, out of viewport, clipping z < 1, etc.
         let mut triangles: Vec<Triangle> = Vec::new();
         for s in &surfaces {
-            let z_space_points: Vec<Point2> = s.iter().map(|p| {
+            if s.orientation == AwayFromCamera {
+                continue;
+            }
+
+            let z_space_points: Vec<Point2> = s.vertices.iter().map(|p| {
                 (*camera * p.euc_to_hom()).hom_to_euc()
             }).collect();
 
@@ -416,12 +445,18 @@ impl Renderer<ObjectOrientation> for Object {
 
             triangles.push(Triangle {
                 vertices: [projected_points[0], projected_points[1], projected_points[2]],
-                color: 0x555555,
+                color: make_gray_color(-s.camera_surface_dot, 0.0, 1.0),
             });
         }
 
         for triangle in triangles {
-            screen.fill_triangle_edge(triangle.vertices[0], triangle.vertices[1], triangle.vertices[2], triangle.color, 0x000000);
+            screen.fill_triangle_edge(triangle.vertices[0], triangle.vertices[1], triangle.vertices[2], triangle.color, 0x0);
         }
     }
+}
+
+fn make_gray_color(intensity: f32, min: f32, max: f32) -> u32 {
+    let scaled = intensity * (max - min) + min;
+    let c = (scaled * 255.0) as u32;
+    (c << 16) | (c << 8) | c
 }
