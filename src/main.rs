@@ -49,7 +49,7 @@ fn run() -> Result<(), String> {
     if scale != 0.0 {
         object.scale(scale);
     } else {
-        object.normalize_size(4.0);
+        object.normalize_size(5.0);
     }
 
     println!("Object details: {}", object);
@@ -60,7 +60,7 @@ fn run() -> Result<(), String> {
         "Shapes - ESC to quit",
         (WIDTH, HEIGHT),
         fps,
-        0xffffff,
+        0xf7ffff,
         |screen, window| {
             let elapsed = now.elapsed().unwrap().as_secs_f32();
 

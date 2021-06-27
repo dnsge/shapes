@@ -534,12 +534,11 @@ impl Renderer<ObjectOrientation> for Object {
         }
 
         for triangle in triangles {
-            screen.fill_triangle_edge(
+            screen.fill_triangle(
                 triangle.vertices[0],
                 triangle.vertices[1],
                 triangle.vertices[2],
                 triangle.color,
-                0x0,
             );
         }
 
