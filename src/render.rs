@@ -409,6 +409,16 @@ struct Surface {
     orientation: SurfaceOrientation,
 }
 
+impl Surface {
+    pub fn min_z(&self) -> f32 {
+        let mut min = self.vertices[0][2];
+        for i in 1..self.vertices.len() {
+            min = f32::min(min, self.vertices[i][2]);
+        }
+        min
+    }
+}
+
 impl Renderer<ObjectOrientation> for Object {
     fn render(&self, screen: &mut Screen, camera: &Matrix<3, 4>, state: ObjectOrientation) {
         // Rendering the object performs the following steps:
@@ -424,7 +434,7 @@ impl Renderer<ObjectOrientation> for Object {
         let transform_vector: Point3 = state.position.sub_point(self.center());
         let rotation_matrix =
             make_rotation_matrix(state.rotation.0, state.rotation.1, state.rotation.2);
-        let surfaces: Vec<Surface> = self
+        let mut surfaces: Vec<Surface> = self
             .faces()
             .iter()
             .map(|f| {
@@ -479,6 +489,8 @@ impl Renderer<ObjectOrientation> for Object {
                 }
             })
             .collect();
+
+        surfaces.sort_by(|s1, s2| s2.min_z().partial_cmp(&s1.min_z()).unwrap());
 
         // todo: handle z = 0, out of viewport, clipping z < 1, etc.
         let mut triangles: Vec<Triangle> = Vec::new();
