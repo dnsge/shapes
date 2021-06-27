@@ -431,7 +431,7 @@ impl Renderer<ObjectOrientation> for Object {
 
         // Rotate surfaces and transform to position
         // todo: combine actions into single world matrix operation
-        let transform_vector: Point3 = state.position.sub_point(self.center());
+        let transform_vector: Point3 = state.position;
         let rotation_matrix =
             make_rotation_matrix(state.rotation.0, state.rotation.1, state.rotation.2);
         let mut surfaces: Vec<Surface> = self
@@ -441,7 +441,8 @@ impl Renderer<ObjectOrientation> for Object {
                 f.vertices()
                     .iter()
                     .map(|&p| {
-                        let rotated = rotate_point_with_matrix(p, self.center(), &rotation_matrix);
+                        let rotated =
+                            rotate_point_with_matrix(p, Point3::default(), &rotation_matrix);
                         rotated.add_point(transform_vector)
                     })
                     .collect()
@@ -543,18 +544,13 @@ impl Renderer<ObjectOrientation> for Object {
         }
 
         if RENDER_DEBUG {
-            render_center_point(self.center(), screen, camera, transform_vector);
+            render_center_point(transform_vector, screen, camera);
         }
     }
 }
 
-fn render_center_point(
-    center: Point3,
-    screen: &mut Screen,
-    camera: &Matrix<3, 4>,
-    transformation_vector: Point3,
-) {
-    let z_space = (*camera * center.add_point(transformation_vector).euc_to_hom()).hom_to_euc();
+fn render_center_point(position: Point3, screen: &mut Screen, camera: &Matrix<3, 4>) {
+    let z_space = (*camera * position.euc_to_hom()).hom_to_euc();
     let screen_space = projection_to_screen(z_space, (2, 2), screen.size());
     if let Some(pixel) = screen.get_pixel_i(screen_space) {
         *pixel = 0xff0000;

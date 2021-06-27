@@ -35,8 +35,7 @@ impl ops::IndexMut<usize> for Face {
 }
 
 pub struct Object {
-    center: Point3,
-    bounds: (f32, f32, f32),
+    size: (f32, f32, f32),
 
     vertices: Vec<Point3>,
     faces: Vec<Face>,
@@ -49,12 +48,8 @@ impl Object {
         &self.vertices
     }
 
-    pub fn center(&self) -> Point3 {
-        self.center
-    }
-
     pub fn normalize_size(&mut self, largest_dimension_target: f32) {
-        let largest_dimension = f32::max(self.bounds.0, f32::max(self.bounds.1, self.bounds.2));
+        let largest_dimension = f32::max(self.size.0, f32::max(self.size.1, self.size.2));
         self.scale(largest_dimension_target / largest_dimension);
     }
 
@@ -63,20 +58,11 @@ impl Object {
             return;
         }
 
-        let center = self.center;
         self.vertices.iter_mut().for_each(|v| {
-            let from_center: Point3 = v.sub_point(center);
-            *v = from_center.scale(by);
+            *v = v.scale(by);
         });
 
-        let bounds = compute_bounds(&self.vertices);
-        let new_center = Point3::new([bounds.0 / 2.0, bounds.1 / 2.0, bounds.2 / 2.0]);
-        self.vertices.iter_mut().for_each(|v| {
-            *v = v.add_point(new_center);
-        });
-
-        self.center = new_center;
-        self.bounds = bounds;
+        self.size = compute_size(&self.vertices);
         self.faces = map_faces(&self.face_indexes, &self.vertices);
     }
 
@@ -89,8 +75,8 @@ impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "center: {} bounds: {} x {} x {}",
-            self.center, self.bounds.0, self.bounds.1, self.bounds.2
+            "Object(size: {} x {} x {})",
+            self.size.0, self.size.1, self.size.2
         )
     }
 }
@@ -102,7 +88,7 @@ pub fn load(path: &str) -> Object {
 
     assert!(ply.is_ok());
     let mut ply = ply.unwrap();
-    println!("Loaded object | Header: {:#?}", ply.header);
+    println!("Loaded object | {:#?}", ply.header);
 
     let mut vertices = Vec::<Point3>::new();
     let vertex_count = ply.header.elements["vertex"].count;
@@ -118,10 +104,11 @@ pub fn load(path: &str) -> Object {
         }
     }
 
-    let bounds = compute_bounds(&vertices);
-    let center = Point3::new([bounds.0 / 2.0, bounds.1 / 2.0, bounds.2 / 2.0]);
+    let center = compute_center(&vertices);
+    let size = compute_size(&vertices);
 
-    vertices.iter_mut().for_each(|p| *p = p.add_point(center));
+    // Move object center to (0, 0, 0)
+    vertices.iter_mut().for_each(|p| *p = p.sub_point(center));
 
     let vertex_index_name = ply.header.elements["face"]
         .properties
@@ -166,15 +153,14 @@ pub fn load(path: &str) -> Object {
     let faces = map_faces(&face_indexes, &vertices);
 
     Object {
-        center,
-        bounds,
+        size,
         vertices,
         faces,
         face_indexes,
     }
 }
 
-fn compute_bounds(vertices: &Vec<Point3>) -> (f32, f32, f32) {
+fn compute_extremes(vertices: &Vec<Point3>) -> (Point3, Point3) {
     let mut min_x: f32 = 0.0;
     let mut max_x: f32 = 0.0;
     let mut min_y: f32 = 0.0;
@@ -191,7 +177,20 @@ fn compute_bounds(vertices: &Vec<Point3>) -> (f32, f32, f32) {
         max_z = f32::max(max_z, v[2]);
     }
 
-    (max_x - min_x, max_y - min_y, max_z - min_z)
+    (
+        Point3::new([min_x, min_y, min_z]),
+        Point3::new([max_x, max_y, max_z]),
+    )
+}
+
+fn compute_size(vertices: &Vec<Point3>) -> (f32, f32, f32) {
+    let extremes = compute_extremes(vertices);
+    extremes.1.sub_point(extremes.0).to_tuple()
+}
+
+fn compute_center(vertices: &Vec<Point3>) -> Point3 {
+    let extremes = compute_extremes(vertices);
+    extremes.0.mid(extremes.1)
 }
 
 fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Face> {

@@ -60,6 +60,14 @@ impl<const D: usize> Point<D> {
         total
     }
 
+    pub fn mid(&self, other: Point<D>) -> Point<D> {
+        let mut res: [f32; D] = [0.0; D];
+        for i in 0..D {
+            res[i] = (self.coords[i] + other.coords[i]) / 2.0;
+        }
+        Point::new(res)
+    }
+
     pub fn magnitude(&self) -> f32 {
         let mut total: f32 = 0.0;
         for i in 0..D {
@@ -144,25 +152,32 @@ impl Point4 {
 
 impl Point3 {
     pub fn hom_to_euc(&self) -> Point2 {
-        assert_ne!(self[2], 0.0); // don't handle points at infinity
+        assert_ne!(self.coords[2], 0.0); // don't handle points at infinity
 
-        if self[2] == 1.0 {
-            Point2::new([self[0], self[1]])
+        if self.coords[2] == 1.0 {
+            Point2::new([self.coords[0], self.coords[1]])
         } else {
-            Point2::new([self[0] / self[2], self[1] / self[2]])
+            Point2::new([
+                self.coords[0] / self.coords[2],
+                self.coords[1] / self.coords[2],
+            ])
         }
     }
 
     pub fn euc_to_hom(&self) -> Point4 {
-        Point4::new([self[0], self[1], self[2], 1.0])
+        Point4::new([self.coords[0], self.coords[1], self.coords[2], 1.0])
     }
 
     pub fn cross(&self, other: Point3) -> Point3 {
         Point3::new([
-            self[1] * other[2] - self[2] * other[1],
-            -(self[0] * other[2] - self[2] * other[0]),
-            self[0] * other[1] - self[1] * other[0],
+            self.coords[1] * other.coords[2] - self.coords[2] * other.coords[1],
+            -(self.coords[0] * other.coords[2] - self.coords[2] * other.coords[0]),
+            self.coords[0] * other.coords[1] - self.coords[1] * other.coords[0],
         ])
+    }
+
+    pub fn to_tuple(&self) -> (f32, f32, f32) {
+        (self.coords[0], self.coords[1], self.coords[2])
     }
 }
 
