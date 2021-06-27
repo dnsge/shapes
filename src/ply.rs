@@ -1,8 +1,8 @@
 use ply_rs;
 use ply_rs::ply::Property;
 
-use std::convert::{TryFrom};
-use std::{ops, fmt};
+use std::convert::TryFrom;
+use std::{fmt, ops};
 
 use crate::geo::Point3;
 
@@ -12,9 +12,7 @@ pub struct Face {
 
 impl Face {
     fn new(vertices: Vec<Point3>) -> Face {
-        Face {
-            vertices
-        }
+        Face { vertices }
     }
 
     pub fn vertices(&self) -> &Vec<Point3> {
@@ -89,7 +87,11 @@ impl Object {
 
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "center: {} bounds: {} x {} x {}", self.center, self.bounds.0, self.bounds.1, self.bounds.2)
+        write!(
+            f,
+            "center: {} bounds: {} x {} x {}",
+            self.center, self.bounds.0, self.bounds.1, self.bounds.2
+        )
     }
 }
 
@@ -119,11 +121,14 @@ pub fn load(path: &str) -> Object {
     let bounds = compute_bounds(&vertices);
     let center = Point3::new([bounds.0 / 2.0, bounds.1 / 2.0, bounds.2 / 2.0]);
 
-    vertices.iter_mut().for_each(|p| {
-        *p = p.add_point(center)
-    });
+    vertices.iter_mut().for_each(|p| *p = p.add_point(center));
 
-    let vertex_index_name = ply.header.elements["face"].properties.iter().next().unwrap().0;
+    let vertex_index_name = ply.header.elements["face"]
+        .properties
+        .iter()
+        .next()
+        .unwrap()
+        .0;
 
     let mut face_indexes: Vec<Vec<usize>> = Vec::new();
     let face_count = ply.header.elements["face"].count;
@@ -149,7 +154,8 @@ pub fn load(path: &str) -> Object {
                 }
             }
 
-            if face_vec.len() < 3 { // invalid face
+            if face_vec.len() < 3 {
+                // invalid face
                 panic!("invalid face with {} vertices", face_vec.len())
             }
 
@@ -189,16 +195,19 @@ fn compute_bounds(vertices: &Vec<Point3>) -> (f32, f32, f32) {
 }
 
 fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Face> {
-    face_indexes.iter().map(|si| {
-        Face::new(si.iter().map(|&n| vertices[n]).collect())
-    }).collect()
+    face_indexes
+        .iter()
+        .map(|si| Face::new(si.iter().map(|&n| vertices[n]).collect()))
+        .collect()
 }
 
-fn conv_vec_to_usize<T>(v: Vec<T>) -> Vec<usize> where usize: TryFrom<T> {
-    v.into_iter().map(|i| {
-        usize::try_from(i)
-            .unwrap_or_else(|_| panic!("Failed to cast to usize"))
-    }).collect()
+fn conv_vec_to_usize<T>(v: Vec<T>) -> Vec<usize>
+where
+    usize: TryFrom<T>,
+{
+    v.into_iter()
+        .map(|i| usize::try_from(i).unwrap_or_else(|_| panic!("Failed to cast to usize")))
+        .collect()
 }
 
 fn scalar_to_float(prop: &Property) -> Option<f32> {
@@ -211,6 +220,6 @@ fn scalar_to_float(prop: &Property) -> Option<f32> {
         Property::UShort(n) => Some(n as f32),
         Property::Int(n) => Some(n as f32),
         Property::UInt(n) => Some(n as f32),
-        _ => None
+        _ => None,
     }
 }

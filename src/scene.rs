@@ -1,15 +1,16 @@
-use minifb::{Key, Window, WindowOptions};
-use crate::render::{Screen, make_focal_matrix};
 use crate::matrix::Matrix;
+use crate::render::{make_focal_matrix, Screen};
+use minifb::{Key, Window, WindowOptions};
 
 pub trait Renderer<S> {
     fn render(&self, screen: &mut Screen, camera: &Matrix<3, 4>, state: S);
 }
 
 pub struct Scene<T, S, F>
-    where T: Renderer<S>,
-          F: Fn(&Screen, &Window) -> S,
-          S: Default + Copy + PartialEq
+where
+    T: Renderer<S>,
+    F: Fn(&Screen, &Window) -> S,
+    S: Default + Copy + PartialEq,
 {
     screen: Screen,
     window: Window,
@@ -24,9 +25,10 @@ pub struct Scene<T, S, F>
 }
 
 impl<T, S, F> Scene<T, S, F>
-    where T: Renderer<S>,
-          F: Fn(&Screen, &Window) -> S,
-          S: Default + Copy + PartialEq
+where
+    T: Renderer<S>,
+    F: Fn(&Screen, &Window) -> S,
+    S: Default + Copy + PartialEq,
 {
     pub fn move_camera(&mut self, x: f32, y: f32) {
         self.camera = make_focal_matrix(x, y)
@@ -59,7 +61,11 @@ impl<T, S, F> Scene<T, S, F>
 
             // Render buffer to screen
             self.window
-                .update_with_buffer(self.screen.buffer(), self.screen.width(), self.screen.height())
+                .update_with_buffer(
+                    self.screen.buffer(),
+                    self.screen.width(),
+                    self.screen.height(),
+                )
                 .unwrap();
         }
     }
@@ -73,12 +79,7 @@ impl<T, S, F> Scene<T, S, F>
         update_func: F,
     ) -> Scene<T, S, F> {
         let screen = Screen::new(size.0, size.1);
-        let window = Window::new(
-            title,
-            size.0,
-            size.1,
-            WindowOptions::default(),
-        ).unwrap();
+        let window = Window::new(title, size.0, size.1, WindowOptions::default()).unwrap();
 
         Scene {
             screen,

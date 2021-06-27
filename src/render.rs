@@ -1,5 +1,5 @@
-use crate::geo::{Point2, Point3, rotate_point_with_matrix};
-use crate::matrix::{Matrix};
+use crate::geo::{rotate_point_with_matrix, Point2, Point3};
+use crate::matrix::Matrix;
 use crate::ply::Object;
 use crate::scene::Renderer;
 
@@ -93,7 +93,8 @@ impl Screen {
     fn bring_inside(&self, p: (isize, isize), slope: f32) -> (isize, isize) {
         // precondition: point is outside of screen
 
-        if slope.is_nan() { // dy = dx = 0 leads to indeterminate form 0.0/0.0 = NaN
+        if slope.is_nan() {
+            // dy = dx = 0 leads to indeterminate form 0.0/0.0 = NaN
             return p;
         }
 
@@ -131,7 +132,8 @@ impl Screen {
                 }
                 let dx = new_x - old_x;
                 new_y = dx * slope + old_y;
-            } else if above || below { // at this point this should always be true, but whatever
+            } else if above || below {
+                // at this point above || below should always be true, but whatever
                 if below {
                     new_y = 0.0
                 } else {
@@ -170,7 +172,8 @@ impl Screen {
         let sign_y = isize::signum(p2.1 - p1.1);
 
         let mut swapped = false;
-        if dy > dx { // swap
+        if dy > dx {
+            // swap
             swapped = true;
             let tmp = dy;
             dy = dx;
@@ -209,22 +212,37 @@ impl Screen {
 
     // Naive implementation of checking if triangle is within the screen
     // Simple bounding box check
-    fn should_draw_triangle(&self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize)) -> bool {
+    fn should_draw_triangle(
+        &self,
+        p1: (isize, isize),
+        p2: (isize, isize),
+        p3: (isize, isize),
+    ) -> bool {
         let min_x = isize::min(p1.0, isize::min(p2.0, p3.0));
         let max_x = isize::max(p1.0, isize::max(p2.0, p3.0));
         let min_y = isize::min(p1.1, isize::min(p2.1, p3.1));
         let max_y = isize::max(p1.1, isize::max(p2.1, p3.1));
 
-        self.inside_screen((max_x, max_y)) || self.inside_screen((min_x, min_y)) || self.inside_screen((max_x, min_y)) || self.inside_screen((min_x, max_y))
+        self.inside_screen((max_x, max_y))
+            || self.inside_screen((min_x, min_y))
+            || self.inside_screen((max_x, min_y))
+            || self.inside_screen((min_x, max_y))
     }
 
-    pub fn fill_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
+    pub fn fill_triangle(
+        &mut self,
+        p1: (isize, isize),
+        p2: (isize, isize),
+        p3: (isize, isize),
+        color: u32,
+    ) {
         if !self.should_draw_triangle(p1, p2, p3) {
             return;
         }
 
         let mut points = vec![p1, p2, p3];
-        points.sort_by_key(|p| { // sort by point y values
+        points.sort_by_key(|p| {
+            // sort by point y values
             p.1
         });
 
@@ -233,13 +251,25 @@ impl Screen {
         } else if points[0].1 == points[1].1 {
             self.fill_top_triangle(points[0], points[1], points[2], color);
         } else {
-            let p4 = ((points[0].0 as f32 + (((points[1].1 - points[0].1) as f32) / ((points[2].1 - points[0].1) as f32)) * (points[2].0 - points[0].0) as f32) as isize, points[1].1);
+            let p4 = (
+                (points[0].0 as f32
+                    + (((points[1].1 - points[0].1) as f32) / ((points[2].1 - points[0].1) as f32))
+                        * (points[2].0 - points[0].0) as f32) as isize,
+                points[1].1,
+            );
             self.fill_bottom_triangle(points[0], points[1], p4, color);
             self.fill_top_triangle(points[1], p4, points[2], color);
         }
     }
 
-    pub fn fill_triangle_edge(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32, edge_color: u32) {
+    pub fn fill_triangle_edge(
+        &mut self,
+        p1: (isize, isize),
+        p2: (isize, isize),
+        p3: (isize, isize),
+        color: u32,
+        edge_color: u32,
+    ) {
         if !self.should_draw_triangle(p1, p2, p3) {
             return;
         }
@@ -250,7 +280,13 @@ impl Screen {
         self.draw_line(p1, p3, edge_color);
     }
 
-    fn fill_bottom_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
+    fn fill_bottom_triangle(
+        &mut self,
+        p1: (isize, isize),
+        p2: (isize, isize),
+        p3: (isize, isize),
+        color: u32,
+    ) {
         let slope1 = (p2.0 - p1.0) as f32 / (p2.1 - p1.1) as f32;
         let slope2 = (p3.0 - p1.0) as f32 / (p3.1 - p1.1) as f32;
 
@@ -264,7 +300,13 @@ impl Screen {
         }
     }
 
-    fn fill_top_triangle(&mut self, p1: (isize, isize), p2: (isize, isize), p3: (isize, isize), color: u32) {
+    fn fill_top_triangle(
+        &mut self,
+        p1: (isize, isize),
+        p2: (isize, isize),
+        p3: (isize, isize),
+        color: u32,
+    ) {
         let slope1 = (p3.0 - p1.0) as f32 / (p3.1 - p1.1) as f32;
         let slope2 = (p3.0 - p2.0) as f32 / (p3.1 - p2.1) as f32;
 
@@ -287,7 +329,11 @@ pub fn make_focal_matrix(cam_x: f32, cam_y: f32) -> Matrix<3, 4> {
     ])
 }
 
-pub fn make_scaling_matrix(pixel_size: f32, viewport_width: usize, viewport_height: usize) -> Matrix<3, 3> {
+pub fn make_scaling_matrix(
+    pixel_size: f32,
+    viewport_width: usize,
+    viewport_height: usize,
+) -> Matrix<3, 3> {
     Matrix::new([
         [1.0 / pixel_size, 0.0, (viewport_width as f32) / 2.0],
         [0.0, 1.0 / pixel_size, (viewport_height as f32) / 2.0],
@@ -302,9 +348,17 @@ pub fn make_rotation_matrix(rx: f32, ry: f32, rz: f32) -> Matrix<3, 3> {
 
     // see https://en.wikipedia.org/wiki/Rotation_matrix#General_rotations
     Matrix::new([
-        [cos(rx) * cos(ry), cos(rx) * sin(ry) * sin(rz) - sin(rx) * cos(rz), cos(rx) * sin(ry) * cos(rz) + sin(rx) * sin(rz)],
-        [sin(rx) * cos(ry), sin(rx) * sin(ry) * sin(rz) + cos(rx) * cos(rz), sin(rx) * sin(ry) * cos(rz) - cos(rx) * sin(rz)],
-        [-sin(ry), cos(ry) * sin(rz), cos(ry) * cos(rz)]
+        [
+            cos(rx) * cos(ry),
+            cos(rx) * sin(ry) * sin(rz) - sin(rx) * cos(rz),
+            cos(rx) * sin(ry) * cos(rz) + sin(rx) * sin(rz),
+        ],
+        [
+            sin(rx) * cos(ry),
+            sin(rx) * sin(ry) * sin(rz) + cos(rx) * cos(rz),
+            sin(rx) * sin(ry) * cos(rz) - cos(rx) * sin(rz),
+        ],
+        [-sin(ry), cos(ry) * sin(rz), cos(ry) * cos(rz)],
     ])
 }
 
@@ -322,7 +376,11 @@ fn ndc_to_screen(ndc: Point2, screen_size: (usize, usize)) -> (isize, isize) {
     )
 }
 
-pub fn projection_to_screen(p: Point2, proj_size: (usize, usize), screen_size: (usize, usize)) -> (isize, isize) {
+pub fn projection_to_screen(
+    p: Point2,
+    proj_size: (usize, usize),
+    screen_size: (usize, usize),
+) -> (isize, isize) {
     let ndc = projection_to_ndc(p, proj_size.0, proj_size.1); // move to normalized device coordinates
     ndc_to_screen(ndc, screen_size) // move to screen coordinates
 }
@@ -364,17 +422,22 @@ impl Renderer<ObjectOrientation> for Object {
         // Rotate surfaces and transform to position
         // todo: combine actions into single world matrix operation
         let transform_vector: Point3 = state.position.sub_point(self.center());
-        let rotation_matrix = make_rotation_matrix(state.rotation.0, state.rotation.1, state.rotation.2);
-        let surfaces: Vec<Surface> = self.faces().iter()
+        let rotation_matrix =
+            make_rotation_matrix(state.rotation.0, state.rotation.1, state.rotation.2);
+        let surfaces: Vec<Surface> = self
+            .faces()
+            .iter()
             .map(|f| {
-                f.vertices().iter()
+                f.vertices()
+                    .iter()
                     .map(|&p| {
                         let rotated = rotate_point_with_matrix(p, self.center(), &rotation_matrix);
                         rotated.add_point(transform_vector)
                     })
                     .collect()
             })
-            .filter(|s: &Vec<Point3>| { // remove surfaces where z < 1
+            .filter(|s: &Vec<Point3>| {
+                // remove surfaces where z < 1
                 let mut inside = false;
                 for p in s {
                     if p[2] >= 1.0 {
@@ -424,9 +487,11 @@ impl Renderer<ObjectOrientation> for Object {
                 continue;
             }
 
-            let z_space_points: Vec<Point2> = s.vertices.iter().map(|p| {
-                (*camera * p.euc_to_hom()).hom_to_euc()
-            }).collect();
+            let z_space_points: Vec<Point2> = s
+                .vertices
+                .iter()
+                .map(|p| (*camera * p.euc_to_hom()).hom_to_euc())
+                .collect();
 
             let mut any_inside = false;
             for p in &z_space_points {
@@ -440,18 +505,29 @@ impl Renderer<ObjectOrientation> for Object {
                 continue;
             }
 
-            let projected_points: Vec<(isize, isize)> = z_space_points.iter().map(|&p| {
-                projection_to_screen(p, (2, 2), screen.size())
-            }).collect();
+            let projected_points: Vec<(isize, isize)> = z_space_points
+                .iter()
+                .map(|&p| projection_to_screen(p, (2, 2), screen.size()))
+                .collect();
 
             triangles.push(Triangle {
-                vertices: [projected_points[0], projected_points[1], projected_points[2]],
+                vertices: [
+                    projected_points[0],
+                    projected_points[1],
+                    projected_points[2],
+                ],
                 color: make_gray_color(-s.camera_surface_dot, 0.0, 1.0),
             });
         }
 
         for triangle in triangles {
-            screen.fill_triangle_edge(triangle.vertices[0], triangle.vertices[1], triangle.vertices[2], triangle.color, 0x0);
+            screen.fill_triangle_edge(
+                triangle.vertices[0],
+                triangle.vertices[1],
+                triangle.vertices[2],
+                triangle.color,
+                0x0,
+            );
         }
 
         if RENDER_DEBUG {
@@ -460,9 +536,14 @@ impl Renderer<ObjectOrientation> for Object {
     }
 }
 
-fn render_center_point(center: Point3, screen: &mut Screen, camera: &Matrix<3, 4>, transformation_vector: Point3) {
+fn render_center_point(
+    center: Point3,
+    screen: &mut Screen,
+    camera: &Matrix<3, 4>,
+    transformation_vector: Point3,
+) {
     let z_space = (*camera * center.add_point(transformation_vector).euc_to_hom()).hom_to_euc();
-    let screen_space = projection_to_screen(z_space, (2, 2,), screen.size());
+    let screen_space = projection_to_screen(z_space, (2, 2), screen.size());
     if let Some(pixel) = screen.get_pixel_i(screen_space) {
         *pixel = 0xff0000;
     }

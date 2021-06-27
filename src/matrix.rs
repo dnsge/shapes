@@ -1,6 +1,6 @@
 use std::{default, fmt, ops};
 
-use crate::geo::{Point};
+use crate::geo::Point;
 
 #[derive(Copy, Clone)]
 pub struct Matrix<const A: usize, const B: usize> {
@@ -9,9 +9,7 @@ pub struct Matrix<const A: usize, const B: usize> {
 
 impl<const A: usize, const B: usize> Matrix<A, B> {
     pub fn new(data: [[f32; B]; A]) -> Matrix<A, B> {
-        Matrix {
-            data
-        }
+        Matrix { data }
     }
 
     pub fn row(&self, col: usize) -> Option<[f32; B]> {
@@ -39,7 +37,7 @@ impl<const A: usize, const B: usize> Matrix<A, B> {
 impl<const A: usize, const B: usize> default::Default for Matrix<A, B> {
     fn default() -> Self {
         Matrix {
-            data: [[0.0; B]; A]
+            data: [[0.0; B]; A],
         }
     }
 }

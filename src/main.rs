@@ -1,11 +1,11 @@
-mod matrix;
 mod geo;
-mod render;
+mod matrix;
 mod ply;
+mod render;
 mod scene;
 
-use geo::{Point3};
-use std::{env, process, path};
+use geo::Point3;
+use std::{env, path, process};
 
 // in pixels
 const WIDTH: usize = 750;

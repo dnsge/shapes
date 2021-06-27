@@ -1,6 +1,6 @@
-use std::{default, fmt, ops};
-use crate::matrix::{Matrix};
+use crate::matrix::Matrix;
 use crate::render::make_rotation_matrix;
+use std::{default, fmt, ops};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Point<const D: usize> {
@@ -13,9 +13,7 @@ impl<const D: usize> Point<D> {
     }
 
     pub fn new(coords: [f32; D]) -> Point<D> {
-        Point {
-            coords
-        }
+        Point { coords }
     }
 
     pub fn coords(&self) -> [f32; D] {
@@ -97,9 +95,7 @@ impl<const D: usize> Point<D> {
 
 impl<const D: usize> default::Default for Point<D> {
     fn default() -> Self {
-        Point {
-            coords: [0.0; D]
-        }
+        Point { coords: [0.0; D] }
     }
 }
 
@@ -139,17 +135,9 @@ impl Point4 {
         assert_ne!(self[3], 0.0); // don't handle points at infinity
 
         if self[3] == 1.0 {
-            Point3::new([
-                self[0],
-                self[1],
-                self[2],
-            ])
+            Point3::new([self[0], self[1], self[2]])
         } else {
-            Point3::new([
-                self[0] / self[3],
-                self[1] / self[3],
-                self[2] / self[3],
-            ])
+            Point3::new([self[0] / self[3], self[1] / self[3], self[2] / self[3]])
         }
     }
 }
@@ -173,7 +161,7 @@ impl Point3 {
         Point3::new([
             self[1] * other[2] - self[2] * other[1],
             -(self[0] * other[2] - self[2] * other[0]),
-            self[0] * other[1] - self[1] * other[0]
+            self[0] * other[1] - self[1] * other[0],
         ])
     }
 }
