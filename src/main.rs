@@ -4,11 +4,7 @@ mod render;
 mod ply;
 mod scene;
 
-use minifb::{Key, Window, WindowOptions};
-use geo::{Point2, Point3};
-use matrix::{Matrix};
-use crate::render::make_rotation_matrix;
-use crate::geo::rotate_point;
+use geo::{Point3};
 use std::{env, process, path};
 
 // in pixels

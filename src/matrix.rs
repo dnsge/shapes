@@ -1,6 +1,6 @@
 use std::{default, fmt, ops};
 
-use crate::geo::{Point, Point3, Point4};
+use crate::geo::{Point};
 
 #[derive(Copy, Clone)]
 pub struct Matrix<const A: usize, const B: usize> {

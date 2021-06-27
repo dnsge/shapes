@@ -1,25 +1,22 @@
 use minifb::{Key, Window, WindowOptions};
-use crate::{render, ply, matrix};
-use crate::render::Screen;
-use crate::geo::{Point3, rotate_point};
+use crate::render::{Screen, make_focal_matrix};
 use crate::matrix::Matrix;
-use std::convert::TryInto;
 
 pub trait Renderer<S> {
-    fn render(&self, screen: &mut render::Screen, camera: &matrix::Matrix<3, 4>, state: S);
+    fn render(&self, screen: &mut Screen, camera: &Matrix<3, 4>, state: S);
 }
 
 pub struct Scene<T, S, F>
     where T: Renderer<S>,
-          F: Fn(&render::Screen, &Window) -> S,
+          F: Fn(&Screen, &Window) -> S,
           S: Default + Copy + PartialEq
 {
-    screen: render::Screen,
+    screen: Screen,
     window: Window,
     object: T,
 
     frame_time: std::time::Duration,
-    camera: matrix::Matrix<3, 4>,
+    camera: Matrix<3, 4>,
     background_color: u32,
 
     update_func: F,
@@ -28,11 +25,11 @@ pub struct Scene<T, S, F>
 
 impl<T, S, F> Scene<T, S, F>
     where T: Renderer<S>,
-          F: Fn(&render::Screen, &Window) -> S,
+          F: Fn(&Screen, &Window) -> S,
           S: Default + Copy + PartialEq
 {
     pub fn move_camera(&mut self, x: f32, y: f32) {
-        self.camera = render::make_focal_matrix(x, y)
+        self.camera = make_focal_matrix(x, y)
     }
 
     pub fn draw_frame(&mut self, state: S) {
@@ -75,8 +72,8 @@ impl<T, S, F> Scene<T, S, F>
         background_color: u32,
         update_func: F,
     ) -> Scene<T, S, F> {
-        let mut screen = render::Screen::new(size.0, size.1);
-        let mut window = Window::new(
+        let screen = Screen::new(size.0, size.1);
+        let window = Window::new(
             title,
             size.0,
             size.1,
@@ -88,7 +85,7 @@ impl<T, S, F> Scene<T, S, F>
             window,
             object,
             frame_time: std::time::Duration::from_micros(1_000_000 / fps),
-            camera: render::make_focal_matrix(0.0, 0.0),
+            camera: make_focal_matrix(0.0, 0.0),
             background_color,
             update_func,
             last_state: None,

@@ -3,7 +3,6 @@ use ply_rs::ply::Property;
 
 use std::convert::{TryFrom};
 use std::{ops, fmt};
-use std::ops::Index;
 
 use crate::geo::Point3;
 
@@ -48,14 +47,6 @@ pub struct Object {
 
 // todo: consider returning references throughout program
 impl Object {
-    fn get_vertex_safe(&self, index: usize) -> Point3 {
-        if index >= self.vertices.len() {
-            Point3::default()
-        } else {
-            self.vertices[index]
-        }
-    }
-
     pub fn vertices(&self) -> &Vec<Point3> {
         &self.vertices
     }
@@ -76,7 +67,7 @@ impl Object {
 
         let center = self.center;
         self.vertices.iter_mut().for_each(|v| {
-            let mut from_center: Point3 = v.sub_point(center);
+            let from_center: Point3 = v.sub_point(center);
             *v = from_center.scale(by);
         });
 
@@ -206,7 +197,7 @@ fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Face
 fn conv_vec_to_usize<T>(v: Vec<T>) -> Vec<usize> where usize: TryFrom<T> {
     v.into_iter().map(|i| {
         usize::try_from(i)
-            .unwrap_or_else(|a| panic!("Failed to cast to usize"))
+            .unwrap_or_else(|_| panic!("Failed to cast to usize"))
     }).collect()
 }
 

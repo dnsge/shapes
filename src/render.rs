@@ -1,4 +1,4 @@
-use crate::geo::{Point2, Point3, rotate_point, rotate_point_with_matrix};
+use crate::geo::{Point2, Point3, rotate_point_with_matrix};
 use crate::matrix::{Matrix};
 use crate::ply::Object;
 use crate::scene::Renderer;
@@ -129,7 +129,7 @@ impl Screen {
                 } else {
                     new_x = (self.width as isize - 1) as f32;
                 }
-                let dx = (new_x - old_x);
+                let dx = new_x - old_x;
                 new_y = dx * slope + old_y;
             } else if above || below { // at this point this should always be true, but whatever
                 if below {
