@@ -43,6 +43,7 @@ pub struct Object {
 
     vertices: Vec<Point3>,
     surfaces: Vec<Surface>,
+    surface_indexes: Vec<Vec<usize>>,
 }
 
 // todo: consider returning references throughout program
@@ -67,9 +68,10 @@ impl Object {
         let center = self.center;
         self.vertices.iter_mut().for_each(|v| {
             let mut from_center: Point3 = v.sub_point(center);
-            *v = from_center.scale(by);
+            *v = from_center.scale(by).add_point(center);
         });
         self.recompute_bounds();
+        self.surfaces = map_surfaces(&self.surface_indexes, &self.vertices);
     }
 
     fn recompute_bounds(&mut self) {
@@ -90,7 +92,6 @@ impl Object {
         }
 
         self.bounds = (max_x - min_x, max_y - min_y, max_z - min_z);
-        self.center = Point3::new([self.bounds.0 / 2.0, self.bounds.1 / 2.0, self.bounds.2 / 2.0]);
     }
 
     pub fn surfaces(&self) -> &Vec<Surface> {
@@ -150,9 +151,9 @@ pub fn load(path: &str) -> Object {
 
     let vertex_index_name = ply.header.elements["face"].properties.iter().next().unwrap().0;
 
-    let mut surfaces: Vec<Surface> = Vec::new();
+    let mut surface_indexes: Vec<Vec<usize>> = Vec::new();
     let surface_count = ply.header.elements["face"].count;
-    surfaces.reserve(surface_count);
+    surface_indexes.reserve(surface_count);
 
     for mut f in ply.payload.remove("face").unwrap() {
         let vi = f.remove(vertex_index_name);
@@ -178,16 +179,25 @@ pub fn load(path: &str) -> Object {
                 panic!("invalid face with {} vertices", surface_vec.len())
             }
 
-            surfaces.push(Surface::new(surface_vec.iter().map(|&n| vertices[n]).collect()));
+            surface_indexes.push(surface_vec);
         }
     }
+
+    let surfaces = map_surfaces(&surface_indexes, &vertices);
 
     Object {
         center,
         bounds,
         vertices,
         surfaces,
+        surface_indexes,
     }
+}
+
+fn map_surfaces(surface_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Surface> {
+    surface_indexes.iter().map(|si| {
+        Surface::new(si.iter().map(|&n| vertices[n]).collect())
+    }).collect()
 }
 
 fn conv_vec_to_usize<T>(v: Vec<T>) -> Vec<usize> where usize: TryFrom<T> {
