@@ -64,13 +64,30 @@ impl Object {
         self.center
     }
 
+    pub fn normalize_size(&mut self, largest_dimension_target: f32) {
+        let largest_dimension = f32::max(self.bounds.0, f32::max(self.bounds.1, self.bounds.2));
+        self.scale(largest_dimension_target / largest_dimension);
+    }
+
     pub fn scale(&mut self, by: f32) {
+        if by == 1.0 {
+            return;
+        }
+
         let center = self.center;
         self.vertices.iter_mut().for_each(|v| {
             let mut from_center: Point3 = v.sub_point(center);
-            *v = from_center.scale(by).add_point(center);
+            *v = from_center.scale(by);
         });
-        self.bounds = compute_bounds(&self.vertices);
+
+        let bounds = compute_bounds(&self.vertices);
+        let new_center = Point3::new([bounds.0 / 2.0, bounds.1 / 2.0, bounds.2 / 2.0]);
+        self.vertices.iter_mut().for_each(|v| {
+            *v = v.add_point(new_center);
+        });
+
+        self.center = new_center;
+        self.bounds = bounds;
         self.faces = map_faces(&self.face_indexes, &self.vertices);
     }
 
@@ -168,7 +185,7 @@ fn compute_bounds(vertices: &Vec<Point3>) -> (f32, f32, f32) {
     let mut min_z: f32 = 0.0;
     let mut max_z: f32 = 0.0;
 
-    for v in &vertices {
+    for v in vertices {
         min_x = f32::min(min_x, v[0]);
         max_x = f32::max(max_x, v[0]);
         min_y = f32::min(min_y, v[1]);

@@ -38,7 +38,7 @@ fn run() -> Result<(), String> {
         };
     }
 
-    let mut scale: f32 = 1.0;
+    let mut scale: f32 = 0.0;
     if args.len() >= 4 {
         let scale_string = &args[3];
         match scale_string.parse::<f32>() {
@@ -50,8 +50,10 @@ fn run() -> Result<(), String> {
     }
 
     let mut object: ply::Object = ply::load(file_name);
-    if scale != 1.0 {
+    if scale != 0.0 {
         object.scale(scale);
+    } else {
+        object.normalize_size(4.0);
     }
 
     println!("Object details: {}", object);
@@ -67,8 +69,8 @@ fn run() -> Result<(), String> {
             let elapsed = now.elapsed().unwrap().as_secs_f32();
 
             render::ObjectOrientation {
-                position: Point3::new([0.0, 0.0, 5.0]),
-                rotation: (0.0, elapsed * 2.0, 0.0),
+                position: Point3::new([0.0, 0.0, 4.0]),
+                rotation: (0.0, f32::to_radians(elapsed * 20.0), f32::to_radians(-90.0)),
             }
         },
     );

@@ -2,7 +2,8 @@ use crate::geo::{Point2, Point3, rotate_point, rotate_point_with_matrix};
 use crate::matrix::{Matrix};
 use crate::ply::Object;
 use crate::scene::Renderer;
-use crate::render::SurfaceOrientation::AwayFromCamera;
+
+const RENDER_DEBUG: bool = false;
 
 pub struct Screen {
     buffer: Vec<u32>,
@@ -419,7 +420,7 @@ impl Renderer<ObjectOrientation> for Object {
         // todo: handle z = 0, out of viewport, clipping z < 1, etc.
         let mut triangles: Vec<Triangle> = Vec::new();
         for s in &surfaces {
-            if s.orientation == AwayFromCamera {
+            if s.orientation == SurfaceOrientation::AwayFromCamera {
                 continue;
             }
 
@@ -452,6 +453,18 @@ impl Renderer<ObjectOrientation> for Object {
         for triangle in triangles {
             screen.fill_triangle_edge(triangle.vertices[0], triangle.vertices[1], triangle.vertices[2], triangle.color, 0x0);
         }
+
+        if RENDER_DEBUG {
+            render_center_point(self.center(), screen, camera, transform_vector);
+        }
+    }
+}
+
+fn render_center_point(center: Point3, screen: &mut Screen, camera: &Matrix<3, 4>, transformation_vector: Point3) {
+    let z_space = (*camera * center.add_point(transformation_vector).euc_to_hom()).hom_to_euc();
+    let screen_space = projection_to_screen(z_space, (2, 2,), screen.size());
+    if let Some(pixel) = screen.get_pixel_i(screen_space) {
+        *pixel = 0xff0000;
     }
 }
 
