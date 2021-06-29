@@ -95,7 +95,7 @@ impl<const A: usize, const B: usize> ops::Mul<Point<B>> for Matrix<A, B> {
      *  A X B * B x 1 = A x 1
      */
     fn mul(self, rhs: Point<B>) -> Self::Output {
-        let as_matrix: Matrix<B, 1> = rhs.to_tall_matrix();
+        let as_matrix: Matrix<B, 1> = rhs.to_matrix();
         (self * as_matrix).tall_to_point()
     }
 }

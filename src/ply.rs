@@ -59,7 +59,7 @@ impl Object {
         }
 
         self.vertices.iter_mut().for_each(|v| {
-            *v = v.scale(by);
+            *v = *v * by;
         });
 
         self.size = compute_size(&self.vertices);
@@ -108,7 +108,7 @@ pub fn load(path: &str) -> Object {
     let size = compute_size(&vertices);
 
     // Move object center to (0, 0, 0)
-    vertices.iter_mut().for_each(|p| *p = p.sub_point(center));
+    vertices.iter_mut().for_each(|p| *p = *p - center);
 
     let vertex_index_name = ply.header.elements["face"]
         .properties
@@ -185,12 +185,12 @@ fn compute_extremes(vertices: &Vec<Point3>) -> (Point3, Point3) {
 
 fn compute_size(vertices: &Vec<Point3>) -> (f32, f32, f32) {
     let extremes = compute_extremes(vertices);
-    extremes.1.sub_point(extremes.0).to_tuple()
+    (extremes.1 - extremes.0).into()
 }
 
 fn compute_center(vertices: &Vec<Point3>) -> Point3 {
     let extremes = compute_extremes(vertices);
-    extremes.0.mid(extremes.1)
+    extremes.0.midpoint(extremes.1)
 }
 
 fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Face> {

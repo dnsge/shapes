@@ -5,15 +5,15 @@ use crate::scene::Renderer;
 
 const RENDER_DEBUG: bool = false;
 
-pub struct Screen {
+pub struct ScreenBuffer {
     buffer: Vec<u32>,
     width: usize,
     height: usize,
 }
 
-impl Screen {
-    pub fn new(width: usize, height: usize) -> Screen {
-        Screen {
+impl ScreenBuffer {
+    pub fn new(width: usize, height: usize) -> ScreenBuffer {
+        ScreenBuffer {
             buffer: vec![0; width * height],
             width,
             height,
@@ -45,6 +45,23 @@ impl Screen {
             None
         } else {
             self.get_coords(pixel.0 as usize, pixel.1 as usize)
+        }
+    }
+
+    pub fn set_pixel(&mut self, pixel: (usize, usize), value: u32) -> bool {
+        if let Some(p) = self.get_pixel(pixel) {
+            *p = value;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_pixel_i(&mut self, pixel: (isize, isize), value: u32) -> bool {
+        if pixel.0 < 0 || pixel.1 < 0 {
+            false
+        } else {
+            self.set_pixel((pixel.0 as usize, pixel.1 as usize), value)
         }
     }
 
@@ -183,9 +200,7 @@ impl Screen {
         let mut err = (dy as f32) / (dx as f32) - 0.5;
 
         for _ in 1..=dx {
-            if let Some(pixel) = self.get_coords_i(x, y) {
-                *pixel = color;
-            }
+            self.set_pixel_i((x, y), color);
 
             while err >= 0.0 {
                 if swapped {
@@ -205,9 +220,7 @@ impl Screen {
             err += (dy as f32) / (dx as f32);
         }
 
-        if let Some(pixel) = self.get_coords_i(p2.0, p2.1) {
-            *pixel = color;
-        }
+        self.set_pixel_i(p2, color);
     }
 
     // Naive implementation of checking if triangle is within the screen
@@ -420,7 +433,7 @@ impl Surface {
 }
 
 impl Renderer<ObjectOrientation> for Object {
-    fn render(&self, screen: &mut Screen, camera: &Matrix<3, 4>, state: ObjectOrientation) {
+    fn render(&self, screen: &mut ScreenBuffer, camera: &Matrix<3, 4>, state: ObjectOrientation) {
         // Rendering the object performs the following steps:
         // 1a. Rotate every surface around the object center
         // 1b. Transform object to position
@@ -443,7 +456,7 @@ impl Renderer<ObjectOrientation> for Object {
                     .map(|&p| {
                         let rotated =
                             rotate_point_with_matrix(p, Point3::default(), &rotation_matrix);
-                        rotated.add_point(transform_vector)
+                        rotated + transform_vector
                     })
                     .collect()
             })
@@ -471,8 +484,8 @@ impl Renderer<ObjectOrientation> for Object {
                 //
                 // ref: https://en.wikipedia.org/wiki/Back-face_culling
 
-                let vec1 = s[1].sub_point(s[0]); // vector A-->B
-                let vec2 = s[2].sub_point(s[0]); // vector A-->C
+                let vec1 = s[1] - s[0]; // vector A-->B
+                let vec2 = s[2] - s[0]; // vector A-->C
                 let surface_normal = vec1.cross(vec2).normalize();
                 let dot = s[0].sub([0.0, 0.0, 0.0]).normalize().dot(surface_normal);
 
@@ -548,12 +561,10 @@ impl Renderer<ObjectOrientation> for Object {
     }
 }
 
-fn render_center_point(position: Point3, screen: &mut Screen, camera: &Matrix<3, 4>) {
+fn render_center_point(position: Point3, screen: &mut ScreenBuffer, camera: &Matrix<3, 4>) {
     let z_space = (*camera * position.euc_to_hom()).hom_to_euc();
     let screen_space = projection_to_screen(z_space, (2, 2), screen.size());
-    if let Some(pixel) = screen.get_pixel_i(screen_space) {
-        *pixel = 0xff0000;
-    }
+    screen.set_pixel_i(screen_space, 0xff0000);
 }
 
 fn make_gray_color(intensity: f32, min: f32, max: f32) -> u32 {

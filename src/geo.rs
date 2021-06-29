@@ -1,6 +1,6 @@
 use crate::matrix::Matrix;
 use crate::render::make_rotation_matrix;
-use std::{default, fmt, ops};
+use std::{convert, default, fmt, ops};
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct Point<const D: usize> {
@@ -60,7 +60,7 @@ impl<const D: usize> Point<D> {
         total
     }
 
-    pub fn mid(&self, other: Point<D>) -> Point<D> {
+    pub fn midpoint(&self, other: Point<D>) -> Point<D> {
         let mut res: [f32; D] = [0.0; D];
         for i in 0..D {
             res[i] = (self.coords[i] + other.coords[i]) / 2.0;
@@ -88,11 +88,7 @@ impl<const D: usize> Point<D> {
         self.coords[D - 1]
     }
 
-    pub fn to_wide_matrix(&self) -> Matrix<1, D> {
-        Matrix::new([self.coords])
-    }
-
-    pub fn to_tall_matrix(&self) -> Matrix<D, 1> {
+    pub fn to_matrix(&self) -> Matrix<D, 1> {
         let mut res: Matrix<D, 1> = Matrix::default();
         for i in 0..D {
             res[(0, i)] = self.coords[i];
@@ -118,6 +114,54 @@ impl<const D: usize> ops::Index<usize> for Point<D> {
 impl<const D: usize> ops::IndexMut<usize> for Point<D> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.coords[index]
+    }
+}
+
+// Point<D> arithmetic operators
+
+impl<const D: usize> ops::Add<Point<D>> for Point<D> {
+    type Output = Point<D>;
+
+    fn add(self, rhs: Point<D>) -> Self::Output {
+        self.add_point(rhs)
+    }
+}
+
+impl<const D: usize> ops::Sub<Point<D>> for Point<D> {
+    type Output = Point<D>;
+
+    fn sub(self, rhs: Point<D>) -> Self::Output {
+        self.sub_point(rhs)
+    }
+}
+
+impl<const D: usize> ops::Neg for Point<D> {
+    type Output = Point<D>;
+
+    fn neg(self) -> Self::Output {
+        self.scale(-1.0)
+    }
+}
+
+impl<const D: usize> ops::Mul<f32> for Point<D> {
+    type Output = Point<D>;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        self.scale(rhs)
+    }
+}
+
+impl<const D: usize> ops::Div<f32> for Point<D> {
+    type Output = Point<D>;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        self.scale(rhs.recip())
+    }
+}
+
+impl<const D: usize> convert::Into<Matrix<D, 1>> for Point<D> {
+    fn into(self) -> Matrix<D, 1> {
+        self.to_matrix()
     }
 }
 
@@ -181,15 +225,47 @@ impl Point3 {
     }
 }
 
+// Point3 tuple operators
+
+impl ops::Add<(f32, f32, f32)> for Point3 {
+    type Output = Point3;
+
+    fn add(self, rhs: (f32, f32, f32)) -> Self::Output {
+        Point3::new([
+            self.coords[0] + rhs.0,
+            self.coords[1] + rhs.1,
+            self.coords[2] + rhs.2,
+        ])
+    }
+}
+
+impl ops::Sub<(f32, f32, f32)> for Point3 {
+    type Output = Point3;
+
+    fn sub(self, rhs: (f32, f32, f32)) -> Self::Output {
+        Point3::new([
+            self.coords[0] - rhs.0,
+            self.coords[1] - rhs.1,
+            self.coords[2] - rhs.2,
+        ])
+    }
+}
+
+impl convert::From<Point3> for (f32, f32, f32) {
+    fn from(p: Point3) -> Self {
+        (p.coords[0], p.coords[1], p.coords[2])
+    }
+}
+
 pub fn rotate_point(p: Point3, center: Point3, rot: (f32, f32, f32)) -> Point3 {
     rotate_point_with_matrix(p, center, &make_rotation_matrix(rot.0, rot.1, rot.2))
 }
 
 pub fn rotate_point_with_matrix(p: Point3, center: Point3, rot_matrix: &Matrix<3, 3>) -> Point3 {
     // 1. Translate p so that center is now at origin
-    let mut n = p.sub_point(center);
+    let mut n = p - center;
     // 2. Rotate n about origin by rot
     n = *rot_matrix * n;
     // 3. Translate p back towards center
-    n.add_point(center)
+    n + center
 }
