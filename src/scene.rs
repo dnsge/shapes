@@ -35,10 +35,17 @@ where
         self.camera = make_focal_matrix(x, y)
     }
 
-    pub fn draw_frame(&mut self, state: S) {
+    fn draw_frame(&mut self, state: S) {
         self.screen.clear(self.background_color);
         self.object.render(&mut self.screen, &self.camera, state);
         self.last_state = Some(state);
+    }
+
+    pub fn draw_and_export_frame(&mut self, state: S) -> &[u32] {
+        self.screen.clear(self.background_color);
+        self.object.render(&mut self.screen, &self.camera, state);
+        self.last_state = Some(state);
+        self.screen.buffer()
     }
 
     pub fn run(&mut self) {

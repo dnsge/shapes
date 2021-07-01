@@ -7,7 +7,9 @@ mod screen_buffer;
 mod three_dim;
 
 use geo::Point3;
-use std::{env, path, process};
+use image::ImageError;
+use std::io::Error;
+use std::{convert, env, io, path, process};
 
 // in pixels
 const WIDTH: usize = 750;
@@ -47,7 +49,13 @@ fn run() -> Result<(), String> {
         };
     }
 
-    let mut object: ply::Object = ply::load(file_name);
+    let loaded_object = ply::load(file_name);
+    match loaded_object {
+        Err(e) => return Err(format!("failed to load ply file: {}", e.to_string())),
+        _ => {}
+    }
+
+    let mut object = loaded_object.unwrap();
     if scale != 0.0 {
         object.scale(scale);
     } else {
@@ -61,7 +69,7 @@ fn run() -> Result<(), String> {
         object,
         "Shapes - ESC to quit",
         (WIDTH, HEIGHT),
-        fps,
+        fps.max(1),
         0xf7ffff,
         |screen, window| {
             let elapsed = now.elapsed().unwrap().as_secs_f32();
@@ -73,8 +81,40 @@ fn run() -> Result<(), String> {
         },
     );
 
-    scene.run();
-    Ok(())
+    if fps == 0 {
+        let frame = scene.draw_and_export_frame(render::ObjectOrientation {
+            position: Point3::new([0.0, 0.0, 4.0]),
+            rotation: (0.0, 0.0, f32::to_radians(0.0)),
+        });
+
+        let buf_data = &rgb8_to_u8_vec(frame)[..];
+        let save_res = image::save_buffer(
+            "output.png",
+            buf_data,
+            WIDTH as u32,
+            HEIGHT as u32,
+            image::ColorType::Rgb8,
+        );
+
+        match save_res {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        }
+    } else {
+        scene.run();
+        Ok(())
+    }
+}
+
+fn rgb8_to_u8_vec(rgb: &[u32]) -> Vec<u8> {
+    let mut res: Vec<u8> = Vec::new();
+    res.reserve(rgb.len() * 3);
+    for &pixel in rgb {
+        res.push(((pixel >> 16) & 0xff) as u8);
+        res.push(((pixel >> 8) & 0xff) as u8);
+        res.push((pixel & 0xff) as u8);
+    }
+    res
 }
 
 fn main() {
