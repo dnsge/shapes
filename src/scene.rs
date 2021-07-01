@@ -1,5 +1,6 @@
 use crate::matrix::Matrix;
-use crate::render::{make_focal_matrix, ScreenBuffer};
+use crate::screen_buffer::ScreenBuffer;
+use crate::three_dim::make_focal_matrix;
 use minifb::{Key, Window, WindowOptions};
 
 pub trait Renderer<S> {

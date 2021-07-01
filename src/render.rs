@@ -2,99 +2,12 @@ use crate::geo::{rotate_point_with_matrix, Point2, Point3};
 use crate::matrix::Matrix;
 use crate::ply::Object;
 use crate::scene::Renderer;
+use crate::screen_buffer::ScreenBuffer;
+use crate::three_dim::{make_rotation_matrix, projection_to_screen};
 
 const RENDER_DEBUG: bool = false;
 
-pub struct ScreenBuffer {
-    buffer: Vec<u32>,
-    width: usize,
-    height: usize,
-}
-
 impl ScreenBuffer {
-    pub fn new(width: usize, height: usize) -> ScreenBuffer {
-        ScreenBuffer {
-            buffer: vec![0; width * height],
-            width,
-            height,
-        }
-    }
-
-    pub fn get_coords(&mut self, x: usize, y: usize) -> Option<&mut u32> {
-        if x >= self.width || y >= self.height {
-            None
-        } else {
-            self.buffer.get_mut(y * self.width + x)
-        }
-    }
-
-    pub fn get_coords_i(&mut self, x: isize, y: isize) -> Option<&mut u32> {
-        if x < 0 || y < 0 {
-            None
-        } else {
-            self.get_coords(x as usize, y as usize)
-        }
-    }
-
-    pub fn get_pixel(&mut self, pixel: (usize, usize)) -> Option<&mut u32> {
-        self.get_coords(pixel.0, pixel.1)
-    }
-
-    pub fn get_pixel_i(&mut self, pixel: (isize, isize)) -> Option<&mut u32> {
-        if pixel.0 < 0 || pixel.1 < 0 {
-            None
-        } else {
-            self.get_coords(pixel.0 as usize, pixel.1 as usize)
-        }
-    }
-
-    pub fn set_pixel(&mut self, pixel: (usize, usize), value: u32) -> bool {
-        if let Some(p) = self.get_pixel(pixel) {
-            *p = value;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn set_pixel_i(&mut self, pixel: (isize, isize), value: u32) -> bool {
-        if pixel.0 < 0 || pixel.1 < 0 {
-            false
-        } else {
-            self.set_pixel((pixel.0 as usize, pixel.1 as usize), value)
-        }
-    }
-
-    pub fn clear(&mut self, color: u32) {
-        self.buffer.fill(color)
-    }
-
-    pub fn width(&self) -> usize {
-        self.width
-    }
-
-    pub fn height(&self) -> usize {
-        self.height
-    }
-
-    pub fn size(&self) -> (usize, usize) {
-        (self.width, self.height)
-    }
-
-    pub fn buffer(&self) -> &[u32] {
-        &self.buffer
-    }
-
-    pub fn outside_screen(&self, p: (isize, isize)) -> bool {
-        (p.0 < 0 || p.0 >= (self.width as isize)) // outside x
-            || (p.1 < 0 || p.1 >= (self.height as isize)) // outside y
-    }
-
-    pub fn inside_screen(&self, p: (isize, isize)) -> bool {
-        (0 < p.0 && p.0 < (self.width as isize)) // inside x
-            && (0 < p.1 && p.1 < (self.height as isize)) // inside y
-    }
-
     // Attempts to bring a point inside the screen along a line
     //
     // For example:
@@ -117,9 +30,9 @@ impl ScreenBuffer {
 
         let is_vertical: bool = slope.is_infinite();
         let below = p.1 < 0;
-        let above = p.1 >= self.height as isize;
+        let above = p.1 >= self.height() as isize;
         let left = p.0 < 0;
-        let right = p.0 >= self.width as isize;
+        let right = p.0 >= self.width() as isize;
 
         if (above || below) && slope == 0.0 {
             return p;
@@ -138,14 +51,14 @@ impl ScreenBuffer {
             if below {
                 new_y = 0.0;
             } else if above {
-                new_y = (self.height - 1) as f32;
+                new_y = (self.height() - 1) as f32;
             }
         } else {
             if left || right {
                 if left {
                     new_x = 0.0;
                 } else {
-                    new_x = (self.width as isize - 1) as f32;
+                    new_x = (self.width() as isize - 1) as f32;
                 }
                 let dx = new_x - old_x;
                 new_y = dx * slope + old_y;
@@ -154,7 +67,7 @@ impl ScreenBuffer {
                 if below {
                     new_y = 0.0
                 } else {
-                    new_y = (self.height as isize - 1) as f32;
+                    new_y = (self.height() as isize - 1) as f32;
                 }
                 let dy = new_y - old_y;
                 new_x = dy / slope + old_x;
@@ -223,25 +136,6 @@ impl ScreenBuffer {
         self.set_pixel_i(p2, color);
     }
 
-    // Naive implementation of checking if triangle is within the screen
-    // Simple bounding box check
-    fn should_draw_triangle(
-        &self,
-        p1: (isize, isize),
-        p2: (isize, isize),
-        p3: (isize, isize),
-    ) -> bool {
-        let min_x = isize::min(p1.0, isize::min(p2.0, p3.0));
-        let max_x = isize::max(p1.0, isize::max(p2.0, p3.0));
-        let min_y = isize::min(p1.1, isize::min(p2.1, p3.1));
-        let max_y = isize::max(p1.1, isize::max(p2.1, p3.1));
-
-        self.inside_screen((max_x, max_y))
-            || self.inside_screen((min_x, min_y))
-            || self.inside_screen((max_x, min_y))
-            || self.inside_screen((min_x, max_y))
-    }
-
     pub fn fill_triangle(
         &mut self,
         p1: (isize, isize),
@@ -249,7 +143,7 @@ impl ScreenBuffer {
         p3: (isize, isize),
         color: u32,
     ) {
-        if !self.should_draw_triangle(p1, p2, p3) {
+        if !self.triangle_inside_screen(p1, p2, p3) {
             return;
         }
 
@@ -283,7 +177,7 @@ impl ScreenBuffer {
         color: u32,
         edge_color: u32,
     ) {
-        if !self.should_draw_triangle(p1, p2, p3) {
+        if !self.triangle_inside_screen(p1, p2, p3) {
             return;
         }
 
@@ -334,76 +228,6 @@ impl ScreenBuffer {
     }
 }
 
-pub fn make_focal_matrix(cam_x: f32, cam_y: f32) -> Matrix<3, 4> {
-    Matrix::new([
-        [1.0, 0.0, 0.0, -cam_x],
-        [0.0, 1.0, 0.0, -cam_y],
-        [0.0, 0.0, 1.0, 0.0],
-    ])
-}
-
-pub fn make_scaling_matrix(
-    pixel_size: f32,
-    viewport_width: usize,
-    viewport_height: usize,
-) -> Matrix<3, 3> {
-    Matrix::new([
-        [1.0 / pixel_size, 0.0, (viewport_width as f32) / 2.0],
-        [0.0, 1.0 / pixel_size, (viewport_height as f32) / 2.0],
-        [0.0, 0.0, 1.0],
-    ])
-}
-
-pub fn make_rotation_matrix(rx: f32, ry: f32, rz: f32) -> Matrix<3, 3> {
-    // aliases
-    let sin = f32::sin;
-    let cos = f32::cos;
-
-    // see https://en.wikipedia.org/wiki/Rotation_matrix#General_rotations
-    Matrix::new([
-        [
-            cos(rx) * cos(ry),
-            cos(rx) * sin(ry) * sin(rz) - sin(rx) * cos(rz),
-            cos(rx) * sin(ry) * cos(rz) + sin(rx) * sin(rz),
-        ],
-        [
-            sin(rx) * cos(ry),
-            sin(rx) * sin(ry) * sin(rz) + cos(rx) * cos(rz),
-            sin(rx) * sin(ry) * cos(rz) - cos(rx) * sin(rz),
-        ],
-        [-sin(ry), cos(ry) * sin(rz), cos(ry) * cos(rz)],
-    ])
-}
-
-fn projection_to_ndc(p: Point2, width: usize, height: usize) -> Point2 {
-    Point2::new([
-        (p[0] + (width as f32 / 2.0)) / (width as f32),
-        (p[1] + (height as f32 / 2.0)) / (height as f32),
-    ])
-}
-
-fn ndc_to_screen(ndc: Point2, screen_size: (usize, usize)) -> (isize, isize) {
-    (
-        (ndc[0] * screen_size.0 as f32).floor() as isize,
-        ((1.0 - ndc[1]) * screen_size.1 as f32).floor() as isize,
-    )
-}
-
-pub fn projection_to_screen(
-    p: Point2,
-    proj_size: (usize, usize),
-    screen_size: (usize, usize),
-) -> (isize, isize) {
-    let ndc = projection_to_ndc(p, proj_size.0, proj_size.1); // move to normalized device coordinates
-    ndc_to_screen(ndc, screen_size) // move to screen coordinates
-}
-
-#[derive(Default, Copy, Clone, PartialEq)]
-pub struct ObjectOrientation {
-    pub position: Point3,
-    pub rotation: (f32, f32, f32),
-}
-
 struct Triangle {
     vertices: [(isize, isize); 3],
     color: u32,
@@ -430,6 +254,12 @@ impl Surface {
         }
         min
     }
+}
+
+#[derive(Default, Copy, Clone, PartialEq)]
+pub struct ObjectOrientation {
+    pub position: Point3,
+    pub rotation: (f32, f32, f32),
 }
 
 impl Renderer<ObjectOrientation> for Object {

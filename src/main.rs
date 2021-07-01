@@ -3,6 +3,8 @@ mod matrix;
 mod ply;
 mod render;
 mod scene;
+mod screen_buffer;
+mod three_dim;
 
 use geo::Point3;
 use std::{env, path, process};

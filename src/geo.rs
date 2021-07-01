@@ -1,5 +1,5 @@
 use crate::matrix::Matrix;
-use crate::render::make_rotation_matrix;
+use crate::three_dim::make_rotation_matrix;
 use std::{convert, default, fmt, ops};
 
 #[derive(Copy, Clone, PartialEq)]
