@@ -1,12 +1,12 @@
 use std::convert::TryFrom;
+use std::fs;
 use std::io::Error;
-use std::{fmt, fs, ops};
 
 use ply_rs::parser::Parser;
 use ply_rs::ply::{DefaultElement, Property};
 
-use crate::geo::Point3;
-use crate::three_dim::{compute_center, Object};
+use crate::world::three_dim::{compute_center, Object};
+use crate::world::Point3;
 
 pub fn load(path: &str) -> Result<Object, Error> {
     let mut f = fs::File::open(path).unwrap();

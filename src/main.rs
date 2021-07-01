@@ -1,15 +1,12 @@
-mod geo;
+use crate::world::Point3;
+use std::{env, path, process};
+
 mod matrix;
 mod ply;
 mod render;
 mod scene;
 mod screen_buffer;
-mod three_dim;
-
-use geo::Point3;
-use image::ImageError;
-use std::io::Error;
-use std::{convert, env, io, path, process};
+mod world;
 
 // in pixels
 const WIDTH: usize = 750;

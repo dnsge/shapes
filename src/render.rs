@@ -1,9 +1,10 @@
-use crate::geo::{rotate_point_with_matrix, Point2, Point3};
 use crate::matrix::Matrix;
 use crate::scene::Renderer;
 use crate::screen_buffer::ScreenBuffer;
-use crate::three_dim::Object;
-use crate::three_dim::{make_rotation_matrix, projection_to_screen};
+use crate::world::three_dim::{
+    make_rotation_matrix, projection_to_screen, rotate_point_with_matrix, Object,
+};
+use crate::world::{Point2, Point3};
 
 const RENDER_DEBUG: bool = false;
 

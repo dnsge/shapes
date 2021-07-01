@@ -1,5 +1,4 @@
 use crate::matrix::Matrix;
-use crate::three_dim::make_rotation_matrix;
 use std::{convert, default, fmt, ops};
 
 #[derive(Copy, Clone, PartialEq)]
@@ -255,17 +254,4 @@ impl convert::From<Point3> for (f32, f32, f32) {
     fn from(p: Point3) -> Self {
         (p.coords[0], p.coords[1], p.coords[2])
     }
-}
-
-pub fn rotate_point(p: Point3, center: Point3, rot: (f32, f32, f32)) -> Point3 {
-    rotate_point_with_matrix(p, center, &make_rotation_matrix(rot.0, rot.1, rot.2))
-}
-
-pub fn rotate_point_with_matrix(p: Point3, center: Point3, rot_matrix: &Matrix<3, 3>) -> Point3 {
-    // 1. Translate p so that center is now at origin
-    let mut n = p - center;
-    // 2. Rotate n about origin by rot
-    n = *rot_matrix * n;
-    // 3. Translate p back towards center
-    n + center
 }

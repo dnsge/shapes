@@ -1,7 +1,7 @@
 use std::{fmt, ops};
 
-use crate::geo::{Point2, Point3};
 use crate::matrix::Matrix;
+use crate::world::{Point2, Point3};
 
 pub struct Face {
     vertices: Vec<Point3>,
@@ -192,4 +192,17 @@ pub fn projection_to_screen(
 ) -> (isize, isize) {
     let ndc = projection_to_ndc(p, proj_size.0, proj_size.1); // move to normalized device coordinates
     ndc_to_screen(ndc, screen_size) // move to screen coordinates
+}
+
+pub fn rotate_point_with_matrix(p: Point3, center: Point3, rot_matrix: &Matrix<3, 3>) -> Point3 {
+    // 1. Translate p so that center is now at origin
+    let mut n = p - center;
+    // 2. Rotate n about origin by rot
+    n = *rot_matrix * n;
+    // 3. Translate p back towards center
+    n + center
+}
+
+pub fn rotate_point(p: Point3, center: Point3, rot: (f32, f32, f32)) -> Point3 {
+    rotate_point_with_matrix(p, center, &make_rotation_matrix(rot.0, rot.1, rot.2))
 }
