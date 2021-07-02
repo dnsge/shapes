@@ -158,9 +158,9 @@ impl<const D: usize> ops::Div<f32> for Point<D> {
     }
 }
 
-impl<const D: usize> convert::Into<Matrix<D, 1>> for Point<D> {
-    fn into(self) -> Matrix<D, 1> {
-        self.to_matrix()
+impl<const D: usize> From<Point<D>> for Matrix<D, 1> {
+    fn from(p: Point<D>) -> Self {
+        p.to_matrix()
     }
 }
 
