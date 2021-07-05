@@ -135,6 +135,30 @@ impl ScreenBuffer {
         self.set_pixel_i(p2, color);
     }
 
+    pub fn fill_triangle_barycentric(
+        &mut self,
+        p1: (isize, isize),
+        p2: (isize, isize),
+        p3: (isize, isize),
+        color: u32,
+    ) {
+        let min_x = p1.0.min(p2.0.min(p3.0));
+        let max_x = p1.0.max(p2.0.max(p3.0));
+        let min_y = p1.1.min(p2.1.min(p3.1));
+        let max_y = p1.1.max(p2.1.max(p3.1));
+
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
+                if edge_function(p1, p2, (x, y))
+                    && edge_function(p2, p3, (x, y))
+                    && edge_function(p3, p1, (x, y))
+                {
+                    self.set_pixel_i((x, y), color);
+                }
+            }
+        }
+    }
+
     pub fn fill_triangle(
         &mut self,
         p1: (isize, isize),
@@ -225,6 +249,14 @@ impl ScreenBuffer {
             cur_x_2 -= slope2;
         }
     }
+}
+
+fn edge_function(a: (isize, isize), b: (isize, isize), c: (isize, isize)) -> bool {
+    edge_function_val(a, b, c) >= 0
+}
+
+fn edge_function_val(a: (isize, isize), b: (isize, isize), c: (isize, isize)) -> isize {
+    ((c.1 - a.1) * (b.0 - a.0)) - ((c.0 - a.0) * (b.1 - a.1))
 }
 
 struct Triangle {
