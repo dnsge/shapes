@@ -11,7 +11,7 @@ impl<const D: usize> Point<D> {
         D
     }
 
-    pub fn new(coords: [f32; D]) -> Point<D> {
+    pub const fn new(coords: [f32; D]) -> Point<D> {
         Point { coords }
     }
 
@@ -164,6 +164,12 @@ impl<const D: usize> From<Point<D>> for Matrix<D, 1> {
     }
 }
 
+impl<const D: usize> From<Matrix<D, 1>> for Point<D> {
+    fn from(m: Matrix<D, 1>) -> Self {
+        m.tall_to_point()
+    }
+}
+
 impl<const D: usize> fmt::Display for Point<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let _ = write!(f, "("); // silence, compiler
@@ -253,5 +259,13 @@ impl ops::Sub<(f32, f32, f32)> for Point3 {
 impl convert::From<Point3> for (f32, f32, f32) {
     fn from(p: Point3) -> Self {
         (p.coords[0], p.coords[1], p.coords[2])
+    }
+}
+
+impl convert::From<(f32, f32, f32)> for Point<3> {
+    fn from(p: (f32, f32, f32)) -> Self {
+        Self {
+            coords: [p.0, p.1, p.2],
+        }
     }
 }
