@@ -1,10 +1,10 @@
-use crate::matrix::Matrix;
 use crate::scene::Renderer;
 use crate::screen_buffer::ScreenBuffer;
-use crate::world::three_dim::{make_rotation_matrix, rotate_point_with_matrix};
-use crate::world::{projection_to_screen, Object, Point2, Point3};
+use crate::world::camera::Camera;
+use crate::world::three_dim::{make_rotation_matrix, rotate_point_about_origin_with_matrix};
+use crate::world::{projection_to_screen, Object, Point3};
 
-const RENDER_DEBUG: bool = false;
+const RENDER_DEBUG: bool = true;
 
 impl ScreenBuffer {
     // Attempts to bring a point inside the screen along a line
@@ -262,7 +262,7 @@ pub struct ObjectOrientation {
 }
 
 impl Renderer<ObjectOrientation> for Object {
-    fn render(&self, screen: &mut ScreenBuffer, camera: &Matrix<3, 4>, state: ObjectOrientation) {
+    fn render(&self, screen: &mut ScreenBuffer, camera: &Camera, state: ObjectOrientation) {
         // Rendering the object performs the following steps:
         // 1a. Rotate every surface around the object center
         // 1b. Transform object to position
@@ -273,7 +273,7 @@ impl Renderer<ObjectOrientation> for Object {
 
         // Rotate surfaces and transform to position
         // todo: combine actions into single world matrix operation
-        let transform_vector: Point3 = state.position;
+        let position: Point3 = state.position;
         let rotation_matrix =
             make_rotation_matrix(state.rotation.0, state.rotation.1, state.rotation.2);
         let mut surfaces: Vec<Surface> = self
@@ -283,24 +283,13 @@ impl Renderer<ObjectOrientation> for Object {
                 f.vertices()
                     .iter()
                     .map(|&p| {
-                        let rotated =
-                            rotate_point_with_matrix(p, Point3::default(), &rotation_matrix);
-                        rotated + transform_vector
+                        // rotate then translate
+                        let rotated = rotate_point_about_origin_with_matrix(p, &rotation_matrix);
+                        rotated + position
                     })
                     .collect()
             })
-            .filter(|s: &Vec<Point3>| {
-                // remove surfaces where z < 1
-                let mut inside = false;
-                for p in s {
-                    if p[2] >= 1.0 {
-                        inside = true;
-                        break;
-                    }
-                }
-                inside
-            })
-            .map(|s| {
+            .map(|s: Vec<Point3>| {
                 // Let triangle ABC be defined by the points s[0], s[1], and s[2]
                 //
                 // 1. ABC has a surface normal N defined by the cross product of two of its legs,
@@ -316,7 +305,7 @@ impl Renderer<ObjectOrientation> for Object {
                 let vec1 = s[1] - s[0]; // vector A-->B
                 let vec2 = s[2] - s[0]; // vector A-->C
                 let surface_normal = vec1.cross(vec2).normalize();
-                let dot = s[0].sub([0.0, 0.0, 0.0]).normalize().dot(surface_normal);
+                let dot = (s[0] - camera.position()).normalize().dot(surface_normal);
 
                 let orientation = if dot < 0.0 {
                     SurfaceOrientation::TowardsCamera
@@ -342,27 +331,11 @@ impl Renderer<ObjectOrientation> for Object {
                 continue;
             }
 
-            let z_space_points: Vec<Point2> = s
+            let projected_points: Vec<(isize, isize)> = s
                 .vertices
                 .iter()
-                .map(|p| (*camera * p.euc_to_hom()).hom_to_euc())
-                .collect();
-
-            let mut any_inside = false;
-            for p in &z_space_points {
-                if p[0].abs() <= 1.0 || p[1].abs() <= 1.0 {
-                    any_inside = true;
-                    break;
-                }
-            }
-
-            if !any_inside {
-                continue;
-            }
-
-            let projected_points: Vec<(isize, isize)> = z_space_points
-                .iter()
-                .map(|&p| projection_to_screen(p, (2, 2), screen.size()))
+                .map(|&p| camera.project_point(p))
+                .map(|p| projection_to_screen(p, (2, 2), screen.size()))
                 .collect();
 
             triangles.push(Triangle {
@@ -385,15 +358,33 @@ impl Renderer<ObjectOrientation> for Object {
         }
 
         if RENDER_DEBUG {
-            render_center_point(transform_vector, screen, camera);
+            render_object_origin(position, screen, camera);
+            render_object_origin(Point3::default(), screen, camera);
         }
     }
 }
 
-fn render_center_point(position: Point3, screen: &mut ScreenBuffer, camera: &Matrix<3, 4>) {
-    let z_space = (*camera * position.euc_to_hom()).hom_to_euc();
+fn render_raw_point(position: Point3, screen: &mut ScreenBuffer, camera: &Camera, color: u32) {
+    let z_space = camera.project_point(position);
     let screen_space = projection_to_screen(z_space, (2, 2), screen.size());
-    screen.set_pixel_i(screen_space, 0xff0000);
+    screen.set_pixel_i(screen_space, color);
+}
+
+fn render_raw_line(p1: Point3, p2: Point3, screen: &mut ScreenBuffer, camera: &Camera, color: u32) {
+    let p1_s = projection_to_screen(camera.project_point(p1), (2, 2), screen.size());
+    let p2_s = projection_to_screen(camera.project_point(p2), (2, 2), screen.size());
+    screen.draw_line(p1_s, p2_s, color);
+}
+
+fn render_object_origin(pos: Point3, screen: &mut ScreenBuffer, camera: &Camera) {
+    let rx = pos + (0.5, 0.0, 0.0);
+    let ry = pos + (0.0, 0.5, 0.0);
+    let rz = pos + (0.0, 0.0, 0.5);
+
+    render_raw_line(pos, rx, screen, camera, 0xff0000);
+    render_raw_line(pos, ry, screen, camera, 0x00ff00);
+    render_raw_line(pos, rz, screen, camera, 0x0000ff);
+    render_raw_point(pos, screen, camera, 0x000000);
 }
 
 fn make_gray_color(intensity: f32, min: f32, max: f32) -> u32 {

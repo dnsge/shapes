@@ -1,16 +1,15 @@
-use crate::matrix::Matrix;
 use crate::screen_buffer::ScreenBuffer;
-use crate::world::three_dim::make_focal_matrix;
+use crate::world::camera::Camera;
 use minifb::{Key, Window, WindowOptions};
 
 pub trait Renderer<S> {
-    fn render(&self, screen: &mut ScreenBuffer, camera: &Matrix<3, 4>, state: S);
+    fn render(&self, screen: &mut ScreenBuffer, camera: &Camera, state: S);
 }
 
 pub struct Scene<T, S, F>
 where
     T: Renderer<S>,
-    F: Fn(&ScreenBuffer, &Window) -> S,
+    F: Fn(&ScreenBuffer, &Window, &mut Camera) -> S,
     S: Default + Copy + PartialEq,
 {
     screen: ScreenBuffer,
@@ -18,7 +17,7 @@ where
     object: T,
 
     frame_time: std::time::Duration,
-    camera: Matrix<3, 4>,
+    camera: Camera,
     background_color: u32,
 
     update_func: F,
@@ -28,13 +27,9 @@ where
 impl<T, S, F> Scene<T, S, F>
 where
     T: Renderer<S>,
-    F: Fn(&ScreenBuffer, &Window) -> S,
+    F: Fn(&ScreenBuffer, &Window, &mut Camera) -> S,
     S: Default + Copy + PartialEq,
 {
-    pub fn move_camera(&mut self, x: f32, y: f32) {
-        self.camera = make_focal_matrix(x, y)
-    }
-
     fn draw_frame(&mut self, state: S) {
         self.screen.clear(self.background_color);
         self.object.render(&mut self.screen, &self.camera, state);
@@ -55,7 +50,7 @@ where
         // Render loop
         while self.window.is_open() && !self.window.is_key_down(Key::Escape) {
             // Get next state
-            let new_state: S = (self.update_func)(&self.screen, &self.window);
+            let new_state: S = (self.update_func)(&self.screen, &self.window, &mut self.camera);
 
             // Only render if state has changed
             let should_update: bool = match self.last_state {
@@ -83,6 +78,7 @@ where
         title: &str,
         size: (usize, usize),
         fps: u64,
+        camera: Camera,
         background_color: u32,
         update_func: F,
     ) -> Scene<T, S, F> {
@@ -94,7 +90,7 @@ where
             window,
             object,
             frame_time: std::time::Duration::from_micros(1_000_000 / fps),
-            camera: make_focal_matrix(0.0, 0.0),
+            camera,
             background_color,
             update_func,
             last_state: None,

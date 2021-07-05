@@ -1,7 +1,7 @@
 use std::{fmt, ops};
 
 use crate::matrix::Matrix;
-use crate::world::{Point2, Point3};
+use crate::world::Point3;
 
 pub struct Face {
     vertices: Vec<Point3>,
@@ -130,26 +130,6 @@ pub fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<
         .collect()
 }
 
-pub fn make_focal_matrix(cam_x: f32, cam_y: f32) -> Matrix<3, 4> {
-    Matrix::new([
-        [1.0, 0.0, 0.0, -cam_x],
-        [0.0, 1.0, 0.0, -cam_y],
-        [0.0, 0.0, 1.0, 0.0],
-    ])
-}
-
-pub fn make_scaling_matrix(
-    pixel_size: f32,
-    viewport_width: usize,
-    viewport_height: usize,
-) -> Matrix<3, 3> {
-    Matrix::new([
-        [1.0 / pixel_size, 0.0, (viewport_width as f32) / 2.0],
-        [0.0, 1.0 / pixel_size, (viewport_height as f32) / 2.0],
-        [0.0, 0.0, 1.0],
-    ])
-}
-
 pub fn make_rotation_matrix(rx: f32, ry: f32, rz: f32) -> Matrix<3, 3> {
     // aliases
     let sin = f32::sin;
@@ -178,6 +158,10 @@ pub fn rotate_point_with_matrix(p: Point3, center: Point3, rot_matrix: &Matrix<3
     n = *rot_matrix * n;
     // 3. Translate p back towards center
     n + center
+}
+
+pub fn rotate_point_about_origin_with_matrix(p: Point3, rot_matrix: &Matrix<3, 3>) -> Point3 {
+    *rot_matrix * p
 }
 
 pub fn rotate_point(p: Point3, center: Point3, rot: (f32, f32, f32)) -> Point3 {

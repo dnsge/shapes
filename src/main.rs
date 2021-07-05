@@ -1,3 +1,4 @@
+use crate::world::camera::Camera;
 use crate::world::Point3;
 use std::{env, path, process};
 
@@ -11,6 +12,7 @@ mod world;
 // in pixels
 const WIDTH: usize = 750;
 const HEIGHT: usize = 750;
+const ASPECT_RATIO: f32 = WIDTH as f32 / HEIGHT as f32;
 
 fn run() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
@@ -61,14 +63,19 @@ fn run() -> Result<(), String> {
 
     println!("Object details: {}", object);
 
+    let mut cam = Camera::new(Point3::new([3.0, 2.0, -2.0]), ASPECT_RATIO);
+    cam.point_to(Point3::new([0.0, 0.0, 4.0]));
+    cam.update();
+
     let now = std::time::SystemTime::now();
     let mut scene = scene::Scene::new(
         object,
         "Shapes - ESC to quit",
         (WIDTH, HEIGHT),
         fps.max(1),
+        cam,
         0xf7ffff,
-        |screen, window| {
+        |_, _, _| {
             let elapsed = now.elapsed().unwrap().as_secs_f32();
 
             render::ObjectOrientation {

@@ -1,3 +1,4 @@
+pub mod camera;
 pub mod geo;
 pub mod projection;
 pub mod three_dim;
