@@ -151,9 +151,9 @@ impl Matrix<2, 2> {
 
 impl Matrix<3, 3> {
     pub fn determinant(&self) -> f32 {
-        let a = (self.data[1][1] * self.data[2][2] - self.data[1][2] * self.data[2][1]);
-        let b = (self.data[1][0] * self.data[2][2] - self.data[1][2] * self.data[2][0]);
-        let c = (self.data[1][0] * self.data[2][1] - self.data[1][1] * self.data[2][0]);
+        let a = self.data[1][1] * self.data[2][2] - self.data[1][2] * self.data[2][1];
+        let b = self.data[1][0] * self.data[2][2] - self.data[1][2] * self.data[2][0];
+        let c = self.data[1][0] * self.data[2][1] - self.data[1][1] * self.data[2][0];
         (self.data[0][0] * a) - (self.data[0][1] * b) + (self.data[0][2] * c)
     }
 
