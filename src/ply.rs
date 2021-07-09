@@ -20,9 +20,8 @@ pub fn load(path: &str) -> Result<Object, Error> {
     let mut ply = ply.unwrap();
     println!("Loaded object | {:#?}", ply.header);
 
-    let mut vertices = Vec::<Point3>::new();
     let vertex_count = ply.header.elements["vertex"].count;
-    vertices.reserve(vertex_count);
+    let mut vertices = Vec::<Point3>::with_capacity(vertex_count);
 
     for p in &ply.payload["vertex"] {
         if let Some(x) = scalar_to_float(&p["x"]) {
@@ -46,9 +45,8 @@ pub fn load(path: &str) -> Result<Object, Error> {
         .unwrap()
         .0;
 
-    let mut face_indexes: Vec<Vec<usize>> = Vec::new();
     let face_count = ply.header.elements["face"].count;
-    face_indexes.reserve(face_count);
+    let mut face_indexes: Vec<Vec<usize>> = Vec::with_capacity(face_count);
 
     for mut f in ply.payload.remove("face").unwrap() {
         let vi = f.remove(vertex_index_name);

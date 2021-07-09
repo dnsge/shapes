@@ -593,6 +593,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "obj-rs"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21fb5f56c5833319f6cb0714a9548853ee4ef745a2c4136da82343c7bd1ae14c"
+dependencies = [
+ "num-traits",
+ "serde",
+ "vec_map",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,6 +957,7 @@ version = "0.1.0"
 dependencies = [
  "image",
  "minifb",
+ "obj-rs",
  "ply-rs",
 ]
 

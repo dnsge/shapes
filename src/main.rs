@@ -1,8 +1,9 @@
 use crate::world::camera::Camera;
-use crate::world::Point3;
+use crate::world::{Object, Point3};
 use std::{env, path, process};
 
 mod matrix;
+mod obj;
 mod ply;
 mod render;
 mod scene;
@@ -48,13 +49,18 @@ fn run() -> Result<(), String> {
         };
     }
 
-    let loaded_object = ply::load(file_name);
-    match loaded_object {
-        Err(e) => return Err(format!("failed to load ply file: {}", e.to_string())),
-        _ => {}
-    }
+    let mut object: Object = if file_name.ends_with(".ply") {
+        match ply::load(file_name) {
+            Ok(o) => o,
+            Err(e) => return Err(format!("failed to load file: {}", e.to_string())),
+        }
+    } else {
+        match obj::load(file_name) {
+            Ok(o) => o,
+            Err(e) => return Err(format!("failed to load file: {}", e.to_string())),
+        }
+    };
 
-    let mut object = loaded_object.unwrap();
     if scale != 0.0 {
         object.scale(scale);
     } else {
@@ -111,8 +117,7 @@ fn run() -> Result<(), String> {
 }
 
 fn rgb8_to_u8_vec(rgb: &[u32]) -> Vec<u8> {
-    let mut res: Vec<u8> = Vec::new();
-    res.reserve(rgb.len() * 3);
+    let mut res: Vec<u8> = Vec::with_capacity(rgb.len() * 3);
     for &pixel in rgb {
         res.push(((pixel >> 16) & 0xff) as u8);
         res.push(((pixel >> 8) & 0xff) as u8);
