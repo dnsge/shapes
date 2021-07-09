@@ -26,11 +26,11 @@ impl<const A: usize, const B: usize> Matrix<A, B> {
         }
 
         let mut res: [f32; A] = [0.0; A];
-        for i in 0..A {
-            res[i] = self.data[i][row];
+        for (i, v) in res.iter_mut().enumerate() {
+            *v = self.data[i][row];
         }
 
-        return Some(res);
+        Some(res)
     }
 
     pub fn transpose(&self) -> Matrix<B, A> {
@@ -265,7 +265,7 @@ impl<const A: usize> Matrix<A, A> {
 
 impl<const A: usize, const B: usize> fmt::Display for Matrix<A, B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let _ = write!(f, "[\n");
+        let _ = writeln!(f, "[");
         for row in 0..A {
             let _ = write!(f, "[");
             for col in 0..B {
@@ -274,7 +274,7 @@ impl<const A: usize, const B: usize> fmt::Display for Matrix<A, B> {
                     let _ = write!(f, ", ");
                 }
             }
-            let _ = write!(f, "]\n");
+            let _ = writeln!(f, "]");
         }
         write!(f, "]")
     }

@@ -63,7 +63,7 @@ impl Object {
     }
 
     pub fn scale(&mut self, by: f32) {
-        if by == 1.0 {
+        if (by - 1.0).abs() < f32::EPSILON {
             return;
         }
 
@@ -90,7 +90,7 @@ impl fmt::Display for Object {
     }
 }
 
-pub fn compute_extremes(vertices: &Vec<Point3>) -> (Point3, Point3) {
+pub fn compute_extremes(vertices: &[Point3]) -> (Point3, Point3) {
     let mut min_x: f32 = 0.0;
     let mut max_x: f32 = 0.0;
     let mut min_y: f32 = 0.0;
@@ -113,17 +113,17 @@ pub fn compute_extremes(vertices: &Vec<Point3>) -> (Point3, Point3) {
     )
 }
 
-pub fn compute_size(vertices: &Vec<Point3>) -> (f32, f32, f32) {
+pub fn compute_size(vertices: &[Point3]) -> (f32, f32, f32) {
     let extremes = compute_extremes(vertices);
     (extremes.1 - extremes.0).into()
 }
 
-pub fn compute_center(vertices: &Vec<Point3>) -> Point3 {
+pub fn compute_center(vertices: &[Point3]) -> Point3 {
     let extremes = compute_extremes(vertices);
     extremes.0.midpoint(extremes.1)
 }
 
-pub fn map_faces(face_indexes: &Vec<Vec<usize>>, vertices: &Vec<Point3>) -> Vec<Face> {
+pub fn map_faces(face_indexes: &[Vec<usize>], vertices: &[Point3]) -> Vec<Face> {
     face_indexes
         .iter()
         .map(|si| Face::new(si.iter().map(|&n| vertices[n]).collect()))

@@ -52,25 +52,23 @@ impl ScreenBuffer {
             } else if above {
                 new_y = (self.height() - 1) as f32;
             }
-        } else {
-            if left || right {
-                if left {
-                    new_x = 0.0;
-                } else {
-                    new_x = (self.width() as isize - 1) as f32;
-                }
-                let dx = new_x - old_x;
-                new_y = dx * slope + old_y;
-            } else if above || below {
-                // at this point above || below should always be true, but whatever
-                if below {
-                    new_y = 0.0
-                } else {
-                    new_y = (self.height() as isize - 1) as f32;
-                }
-                let dy = new_y - old_y;
-                new_x = dy / slope + old_x;
+        } else if left || right {
+            if left {
+                new_x = 0.0;
+            } else {
+                new_x = (self.width() as isize - 1) as f32;
             }
+            let dx = new_x - old_x;
+            new_y = dx * slope + old_y;
+        } else if above || below {
+            // at this point above || below should always be true, but whatever
+            if below {
+                new_y = 0.0
+            } else {
+                new_y = (self.height() as isize - 1) as f32;
+            }
+            let dy = new_y - old_y;
+            new_x = dy / slope + old_x;
         }
 
         (new_x as isize, new_y as isize)
@@ -102,11 +100,8 @@ impl ScreenBuffer {
 
         let mut swapped = false;
         if dy > dx {
-            // swap
             swapped = true;
-            let tmp = dy;
-            dy = dx;
-            dx = tmp;
+            std::mem::swap(&mut dx, &mut dy);
         }
 
         let mut err = (dy as f32) / (dx as f32) - 0.5;

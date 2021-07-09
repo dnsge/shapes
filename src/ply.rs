@@ -13,8 +13,8 @@ pub fn load(path: &str) -> Result<Object, Error> {
     let p = Parser::<DefaultElement>::new();
     let ply = p.read_ply(&mut f);
 
-    if ply.is_err() {
-        return Err(ply.unwrap_err());
+    if let Err(e) = ply {
+        return Err(e);
     }
 
     let mut ply = ply.unwrap();

@@ -37,8 +37,8 @@ impl<const D: usize> Point<D> {
 
     pub fn scale(&self, by: f32) -> Point<D> {
         let mut res: [f32; D] = [0.0; D];
-        for i in 0..D {
-            res[i] = self.coords[i] * by;
+        for (i, v) in res.iter_mut().enumerate() {
+            *v = self.coords[i] * by;
         }
         Point::new(res)
     }
@@ -61,8 +61,8 @@ impl<const D: usize> Point<D> {
 
     pub fn midpoint(&self, other: Point<D>) -> Point<D> {
         let mut res: [f32; D] = [0.0; D];
-        for i in 0..D {
-            res[i] = (self.coords[i] + other.coords[i]) / 2.0;
+        for (i, v) in res.iter_mut().enumerate() {
+            *v = (self.coords[i] + other.coords[i]) / 2.0;
         }
         Point::new(res)
     }
@@ -87,7 +87,7 @@ impl<const D: usize> Point<D> {
         self.coords[D - 1]
     }
 
-    pub fn to_matrix(&self) -> Matrix<D, 1> {
+    pub fn to_matrix(self) -> Matrix<D, 1> {
         let mut res: Matrix<D, 1> = Matrix::default();
         for i in 0..D {
             res[(0, i)] = self.coords[i];
@@ -189,21 +189,25 @@ pub type Point4 = Point<4>;
 
 impl Point4 {
     pub fn hom_to_euc(&self) -> Point3 {
-        assert_ne!(self[3], 0.0); // don't handle points at infinity
+        assert!(self.coords[3].abs() > f32::EPSILON); // don't handle points at infinity (w = 0)
 
-        if self[3] == 1.0 {
-            Point3::new([self[0], self[1], self[2]])
+        if (self.coords[3] - 1.0).abs() < f32::EPSILON {
+            Point3::new([self.coords[0], self.coords[1], self.coords[2]])
         } else {
-            Point3::new([self[0] / self[3], self[1] / self[3], self[2] / self[3]])
+            Point3::new([
+                self.coords[0] / self.coords[3],
+                self.coords[1] / self.coords[3],
+                self.coords[2] / self.coords[3],
+            ])
         }
     }
 }
 
 impl Point3 {
     pub fn hom_to_euc(&self) -> Point2 {
-        assert_ne!(self.coords[2], 0.0); // don't handle points at infinity
+        assert!(self.coords[2].abs() > f32::EPSILON); // don't handle points at infinity (w = 0)
 
-        if self.coords[2] == 1.0 {
+        if (self.coords[2] - 1.0).abs() < f32::EPSILON {
             Point2::new([self.coords[0], self.coords[1]])
         } else {
             Point2::new([
@@ -225,7 +229,7 @@ impl Point3 {
         ])
     }
 
-    pub fn to_tuple(&self) -> (f32, f32, f32) {
+    pub fn to_tuple(self) -> (f32, f32, f32) {
         (self.coords[0], self.coords[1], self.coords[2])
     }
 }
