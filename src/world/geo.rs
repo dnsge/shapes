@@ -68,11 +68,15 @@ impl<const D: usize> Point<D> {
     }
 
     pub fn magnitude(&self) -> f32 {
+        self.magnitude_2().sqrt()
+    }
+
+    pub fn magnitude_2(&self) -> f32 {
         let mut total: f32 = 0.0;
         for i in 0..D {
             total += self[i].powi(2);
         }
-        total.sqrt()
+        total
     }
 
     pub fn normalize(&self) -> Point<D> {

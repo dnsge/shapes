@@ -2,6 +2,8 @@ use crate::matrix::Matrix;
 use crate::world::three_dim::make_rotation_matrix;
 use crate::world::{Point2, Point3};
 
+use super::projection::ProjectedPoint;
+
 pub struct Camera {
     position: Point3,
     view_matrix: Matrix<4, 4>,
@@ -44,6 +46,16 @@ impl Camera {
 
     pub fn project_point(&self, p: Point3) -> Point2 {
         (self.combined_matrix * p.euc_to_hom()).hom_to_euc()
+    }
+
+    pub fn project_point_with_depth(&self, p: Point3) -> ProjectedPoint {
+        let proj = self.project_point(p);
+        let dist_squared = (p - self.position).magnitude_2();
+        ProjectedPoint {
+            x: proj[0],
+            y: proj[1],
+            z: dist_squared,
+        }
     }
 }
 
