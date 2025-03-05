@@ -6,21 +6,26 @@ use super::projection::ProjectedPoint;
 
 pub struct Camera {
     position: Point3,
+    rotation: (f32, f32, f32),
     view_matrix: Matrix<4, 4>,
     focal_matrix: Matrix<3, 4>,
     combined_matrix: Matrix<3, 4>,
+    modified: bool,
 }
 
 impl Camera {
     pub fn new(position: Point3, aspect_ratio: f32) -> Camera {
-        let view_matrix = rotation_view_matrix(position, (0.0, 0.0, 0.0));
+        let rotation = (0.0, 0.0, 0.0);
+        let view_matrix = rotation_view_matrix(position, rotation);
         let focal_matrix = make_focal_matrix(0.0, 0.0, aspect_ratio);
 
         Camera {
             position,
+            rotation,
             view_matrix,
             focal_matrix,
             combined_matrix: focal_matrix * view_matrix,
+            modified: false,
         }
     }
 
@@ -28,12 +33,16 @@ impl Camera {
         self.position
     }
 
+    pub fn rotation(&self) -> (f32, f32, f32) {
+        self.rotation
+    }
+
     pub fn move_to(&mut self, point: Point3) {
         self.position = point;
     }
 
     pub fn set_rotation(&mut self, rotation: (f32, f32, f32)) {
-        self.view_matrix = rotation_view_matrix(self.position, rotation);
+        self.rotation = rotation;
     }
 
     pub fn point_to(&mut self, point: Point3) {
@@ -41,7 +50,9 @@ impl Camera {
     }
 
     pub fn update(&mut self) {
+        self.view_matrix = rotation_view_matrix(self.position, self.rotation);
         self.combined_matrix = self.focal_matrix * self.view_matrix;
+        self.modified = true;
     }
 
     pub fn project_point(&self, p: Point3) -> Point2 {
@@ -55,6 +66,15 @@ impl Camera {
             x: proj[0],
             y: proj[1],
             z: dist_squared,
+        }
+    }
+
+    pub fn get_and_clear_modified(&mut self) -> bool {
+        if self.modified {
+            self.modified = false;
+            true
+        } else {
+            false
         }
     }
 }

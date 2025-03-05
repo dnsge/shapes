@@ -9,13 +9,14 @@ pub trait Renderer<S> {
 pub struct Scene<T, S, F>
 where
     T: Renderer<S>,
-    F: Fn(&ScreenBuffer, &Window, &mut Camera) -> S,
+    F: Fn(&ScreenBuffer, &Window, &mut Camera, std::time::Duration) -> S,
     S: Default + Copy + PartialEq,
 {
     screen: ScreenBuffer,
     window: Window,
     object: T,
 
+    last_frame: std::time::Instant,
     frame_time: std::time::Duration,
     camera: Camera,
     background_color: u32,
@@ -27,7 +28,7 @@ where
 impl<T, S, F> Scene<T, S, F>
 where
     T: Renderer<S>,
-    F: Fn(&ScreenBuffer, &Window, &mut Camera) -> S,
+    F: Fn(&ScreenBuffer, &Window, &mut Camera, std::time::Duration) -> S,
     S: Default + Copy + PartialEq,
 {
     fn draw_frame(&mut self, state: S) {
@@ -49,16 +50,22 @@ where
 
         // Render loop
         while self.window.is_open() && !self.window.is_key_down(Key::Escape) {
-            // Get next state
-            let new_state: S = (self.update_func)(&self.screen, &self.window, &mut self.camera);
+            let now = std::time::Instant::now();
+            let delta = now - self.last_frame;
+            self.last_frame = now;
 
-            // Only render if state has changed
-            let should_update: bool = match self.last_state {
+            // Get next state
+            let new_state: S =
+                (self.update_func)(&self.screen, &self.window, &mut self.camera, delta);
+
+            let state_changed: bool = match self.last_state {
                 Some(old_state) => old_state != new_state,
                 None => true,
             };
+            let camera_changed = self.camera.get_and_clear_modified();
 
-            if should_update {
+            // Only render if something has changed
+            if state_changed || camera_changed {
                 self.draw_frame(new_state);
             }
 
@@ -89,6 +96,7 @@ where
             screen,
             window,
             object,
+            last_frame: std::time::Instant::now(),
             frame_time: std::time::Duration::from_micros(1_000_000 / fps),
             camera,
             background_color,

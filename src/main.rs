@@ -1,5 +1,6 @@
 use crate::world::camera::Camera;
 use crate::world::{Object, Point3};
+use core::f32;
 use std::{env, path, process};
 
 mod matrix;
@@ -81,7 +82,14 @@ fn run() -> Result<(), String> {
         fps.max(1),
         cam,
         0xf7ffff,
-        |_, _, _| {
+        |_, window, cam, delta| {
+            handle_camera_controls(
+                window,
+                cam,
+                0.01 * (delta.as_millis() as f32),
+                0.001 * (delta.as_millis() as f32),
+            );
+
             let elapsed = now.elapsed().unwrap().as_secs_f32();
 
             render::ObjectOrientation {
@@ -124,6 +132,130 @@ fn rgb8_to_u8_vec(rgb: &[u32]) -> Vec<u8> {
         res.push((pixel & 0xff) as u8);
     }
     res
+}
+
+fn handle_camera_controls(
+    window: &minifb::Window,
+    camera: &mut Camera,
+    speed: f32,
+    rotation_speed: f32,
+) {
+    // Get camera rotation
+    let (rot_x, rot_y, rot_z) = camera.rotation();
+
+    // Calculate camera's basis vectors for left-handed system (+x right, +y up, +z into screen)
+
+    // Forward vector (where the camera is pointing, +z direction)
+    // For pitch: positive rot_x means looking up, negative means looking down
+    let forward = Point3::new([
+        rot_y.sin() * rot_x.cos(),
+        -rot_x.sin(), // Negative Y component when looking down (negative rot_x)
+        rot_y.cos() * rot_x.cos(),
+    ]);
+
+    // Right vector (perpendicular to forward in the horizontal plane, +x direction)
+    let right = Point3::new([rot_y.cos(), 0.0, -rot_y.sin()]);
+
+    // Up vector (world up, not camera up, to maintain stable movement)
+    let up = Point3::new([0.0, 1.0, 0.0]);
+
+    // Initialize movement vector
+    let mut movement = Point3::new([0.0, 0.0, 0.0]);
+
+    // Add movement components based on key presses
+    if window.is_key_down(minifb::Key::W) {
+        // Move forward - directly use the forward vector's components
+        // This should allow proper movement in the direction you're looking
+        movement[0] += forward[0] * speed;
+        movement[1] += forward[1] * speed;
+        movement[2] += forward[2] * speed;
+    }
+    if window.is_key_down(minifb::Key::S) {
+        // Move backward - opposite of forward direction
+        movement[0] -= forward[0] * speed;
+        movement[1] -= forward[1] * speed;
+        movement[2] -= forward[2] * speed;
+    }
+    if window.is_key_down(minifb::Key::A) {
+        // Move left
+        movement[0] -= right[0] * speed;
+        movement[1] -= right[1] * speed;
+        movement[2] -= right[2] * speed;
+    }
+    if window.is_key_down(minifb::Key::D) {
+        // Move right
+        movement[0] += right[0] * speed;
+        movement[1] += right[1] * speed;
+        movement[2] += right[2] * speed;
+    }
+    if window.is_key_down(minifb::Key::E) {
+        // Move up
+        movement[0] += up[0] * speed;
+        movement[1] += up[1] * speed;
+        movement[2] += up[2] * speed;
+    }
+    if window.is_key_down(minifb::Key::Q) {
+        // Move down
+        movement[0] -= up[0] * speed;
+        movement[1] -= up[1] * speed;
+        movement[2] -= up[2] * speed;
+    }
+
+    // Apply movement to camera position
+    if movement != Point3::new([0.0, 0.0, 0.0]) {
+        let current_pos = camera.position();
+        camera.move_to(Point3::new([
+            current_pos[0] + movement[0],
+            current_pos[1] + movement[1],
+            current_pos[2] + movement[2],
+        ]));
+    }
+
+    // Rotation controls - Arrow keys
+    let mut rotation_delta = (0.0f32, 0.0f32, 0.0f32);
+
+    // Pitch control (z-axis rotation)
+    if window.is_key_down(minifb::Key::Up) {
+        rotation_delta.2 -= rotation_speed;
+    }
+    if window.is_key_down(minifb::Key::Down) {
+        rotation_delta.2 += rotation_speed;
+    }
+
+    // Yaw control (y-axis rotation)
+    if window.is_key_down(minifb::Key::Left) {
+        rotation_delta.1 -= rotation_speed;
+    }
+    if window.is_key_down(minifb::Key::Right) {
+        rotation_delta.1 += rotation_speed;
+    }
+
+    // Roll control (x-axis rotation) - Z and X keys
+    if window.is_key_down(minifb::Key::Z) {
+        rotation_delta.0 -= rotation_speed;
+    }
+    if window.is_key_down(minifb::Key::X) {
+        rotation_delta.0 += rotation_speed;
+    }
+
+    // Apply rotation changes
+    if rotation_delta != (0.0, 0.0, 0.0) {
+        let (rot_x, rot_y, rot_z) = camera.rotation();
+        camera.set_rotation((
+            rot_x + rotation_delta.0,
+            rot_y + rotation_delta.1,
+            f32::clamp(
+                rot_z + rotation_delta.2,
+                -f32::consts::FRAC_PI_2,
+                f32::consts::FRAC_PI_2,
+            ),
+        ));
+    }
+
+    // Update camera matrices if any changes were made
+    if movement != Point3::new([0.0, 0.0, 0.0]) || rotation_delta != (0.0, 0.0, 0.0) {
+        camera.update();
+    }
 }
 
 fn main() {
